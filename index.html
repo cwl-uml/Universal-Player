@@ -76,13 +76,13 @@
     }
     input[type=range]::-webkit-slider-thumb {
       -webkit-appearance: none;
-      height: 12px;
-      width: 12px;
+      height: 14px;
+      width: 14px;
       border-radius: 50%;
-      background: #8b5cf6;
+      background: #c4b5fd;
       cursor: pointer;
-      margin-top: -3px;
-      box-shadow: 0 0 8px rgba(139, 92, 246, 0.6);
+      margin-top: -4px;
+      box-shadow: 0 0 10px rgba(139, 92, 246, 0.9);
       transition: transform 0.15s ease;
     }
     input[type=range]::-webkit-slider-thumb:hover {
@@ -92,8 +92,13 @@
       width: 100%;
       height: 6px;
       cursor: pointer;
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.15);
       border-radius: 3px;
+    }
+
+    /* 全螢幕或播放中隱藏滑鼠指針 */
+    .hide-cursor {
+      cursor: none !important;
     }
   </style>
 </head>
@@ -209,12 +214,17 @@
           <i data-lucide="play" class="w-8 h-8 fill-current translate-x-0.5"></i>
         </div>
 
-        <!-- 自訂浮動控制面板 (置底毛玻璃) -->
-        <div id="player-controls" class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent px-4 py-3 flex flex-col gap-2 transition-opacity duration-300 opacity-100">
+        <!-- 自訂浮動控制面板 (置底毛玻璃，支援無動作自動隱藏) -->
+        <div id="player-controls" class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent px-4 py-3 flex flex-col gap-2 transition-all duration-300 opacity-100 translate-y-0">
           
           <!-- 進度滑桿與時間 -->
           <div class="flex items-center gap-3">
-            <div class="relative flex-1 flex items-center">
+            <div class="relative flex-1 flex items-center h-6">
+              <!-- 已播放亮色軌道 (Played Track) -->
+              <div id="played-bar" class="absolute left-0 top-1/2 -translate-y-1/2 h-1.5 bg-gradient-to-r from-brand-600 to-brand-400 rounded-l-full pointer-events-none z-10 w-0"></div>
+              <!-- 緩衝條 (Buffer Bar) -->
+              <div id="buffer-bar" class="absolute left-0 top-1/2 -translate-y-1/2 h-1.5 bg-white/25 rounded-full pointer-events-none w-0"></div>
+              <!-- 互動 Range 滑桿 (置於頂層) -->
               <input
                 id="seek-bar"
                 type="range"
@@ -222,10 +232,8 @@
                 max="100"
                 value="0"
                 step="0.1"
-                class="w-full h-1.5 cursor-pointer z-10"
+                class="w-full h-1.5 cursor-pointer z-20 absolute"
               />
-              <!-- 緩衝條 (Buffer Bar) -->
-              <div id="buffer-bar" class="absolute left-0 top-1/2 -translate-y-1/2 h-1.5 bg-white/20 rounded-full pointer-events-none w-0"></div>
             </div>
             <div class="text-[11px] font-mono text-gray-300 whitespace-nowrap">
               <span id="current-time">00:00</span> / <span id="duration-time">00:00</span>
@@ -465,6 +473,7 @@
     const playPauseBtn = document.getElementById('play-pause-btn');
     const centerPlayFeedback = document.getElementById('center-play-feedback');
     const seekBar = document.getElementById('seek-bar');
+    const playedBar = document.getElementById('played-bar');
     const bufferBar = document.getElementById('buffer-bar');
     const currentTimeEl = document.getElementById('current-time');
     const durationTimeEl = document.getElementById('duration-time');
@@ -514,6 +523,40 @@
     let currentEngine = 'none';
     let historyList = [];
     let isPlayingOrSeekingPlay = false;
+    let controlsHideTimeout = null;
+
+    // 控制面板自動隱藏與顯示邏輯
+    function showControls() {
+      playerControls.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-2');
+      playerControls.classList.add('opacity-100', 'translate-y-0');
+      playerContainer.classList.remove('hide-cursor');
+
+      clearTimeout(controlsHideTimeout);
+      // 若正在播放中，3 秒無動作自動淡出隱藏
+      if (!video.paused) {
+        controlsHideTimeout = setTimeout(() => {
+          hideControls();
+        }, 3000);
+      }
+    }
+
+    function hideControls() {
+      // 暫停中或是倍速選單開啟時不自動隱藏
+      if (video.paused || !speedMenu.classList.contains('hidden')) return;
+      playerControls.classList.remove('opacity-100', 'translate-y-0');
+      playerControls.classList.add('opacity-0', 'pointer-events-none', 'translate-y-2');
+      playerContainer.classList.add('hide-cursor');
+    }
+
+    // 監聽滑鼠與觸控事件
+    playerContainer.addEventListener('mousemove', showControls);
+    playerContainer.addEventListener('mouseenter', showControls);
+    playerContainer.addEventListener('mouseleave', () => {
+      if (!video.paused) {
+        hideControls();
+      }
+    });
+    playerContainer.addEventListener('touchstart', showControls, { passive: true });
 
     // 劇集解析狀態物件
     let seriesInfo = {
@@ -760,6 +803,7 @@
 
     // 播放事件：結束時「零延遲」立即切換下一集
     video.addEventListener('ended', () => {
+      showControls();
       if (seriesInfo.isActive && autoNextToggle.checked) {
         if (seriesInfo.currentEp < seriesInfo.totalCount) {
           playNextEpisode();
@@ -769,16 +813,19 @@
 
     video.addEventListener('play', () => {
       updatePlayState();
+      showControls();
     });
 
     video.addEventListener('pause', () => {
       updatePlayState();
+      showControls();
     });
 
     video.addEventListener('timeupdate', () => {
       if (!isNaN(video.duration) && video.duration > 0) {
         const pct = (video.currentTime / video.duration) * 100;
         seekBar.value = pct;
+        playedBar.style.width = `${pct}%`;
         currentTimeEl.textContent = formatTime(video.currentTime);
         durationTimeEl.textContent = formatTime(video.duration);
         updateBuffer();
@@ -787,6 +834,7 @@
 
     video.addEventListener('loadedmetadata', () => {
       durationTimeEl.textContent = formatTime(video.duration);
+      playedBar.style.width = '0%';
       if (video.videoWidth && video.videoHeight) {
         mediaResBadge.textContent = `${video.videoWidth} x ${video.videoHeight}`;
         mediaResBadge.classList.remove('hidden');
@@ -857,6 +905,7 @@
       if (!isNaN(video.duration)) {
         const targetTime = (seekBar.value / 100) * video.duration;
         video.currentTime = targetTime;
+        playedBar.style.width = `${seekBar.value}%`;
         currentTimeEl.textContent = formatTime(targetTime);
       }
     });
@@ -1248,6 +1297,9 @@
       if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
         return;
       }
+
+      // 觸發鍵盤操作時，喚醒顯示控制面板
+      showControls();
 
       switch (e.code) {
         case 'Space':
