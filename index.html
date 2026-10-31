@@ -3,10 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Universal Video Stream Player - 萬能線上串流播放器</title>
-  <!-- Favicon (SVG Data URI) -->
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><defs><linearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%236366f1'/><stop offset='100%25' stop-color='%234338ca'/></linearGradient></defs><rect width='64' height='64' rx='16' fill='url(%23g)'/><polygon points='26,18 48,32 26,46' fill='white'/></svg>" />
-  <!-- Tailwind CSS -->
+  <title>萬能線上影音播放器 | Universal Web Video Player</title>
+
+  <!-- 內嵌 SVG Favicon (紫色播放幾何圖示) -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' stop-color='%236366f1'/%3E%3Cstop offset='100%25' stop-color='%23a855f7'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cpolygon points='12,9 24,16 12,23' fill='%23ffffff'/%3E%3C/svg%3E" />
+
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -15,45 +17,56 @@
         extend: {
           colors: {
             brand: {
-              500: '#6366f1',
-              600: '#4f46e5',
-              700: '#4338ca',
+              50: '#f5f3ff',
+              100: '#ede9fe',
+              200: '#ddd6fe',
+              300: '#c4b5fd',
+              400: '#a78bfa',
+              500: '#8b5cf6',
+              600: '#7c3aed',
+              700: '#6d28d9',
+              800: '#5b21b6',
+              900: '#4c1d95',
+              950: '#2e1065',
             },
             surface: {
-              900: '#0f1117',
-              800: '#161922',
-              700: '#1f2430',
-              600: '#2b3242'
+              800: '#1f2430',
+              850: '#191d27',
+              900: '#12151c',
+              950: '#0b0d13',
             }
           }
         }
       }
-    };
+    }
   </script>
-  <!-- FontAwesome Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-  <!-- HLS.js CDN -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.4.12/hls.min.js"></script>
-  <!-- Dash.js CDN -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/dashjs/4.7.4/dash.all.min.js"></script>
+
+  <!-- HLS.js for .m3u8 playback -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <!-- Dash.js for .mpd playback -->
+  <script src="https://cdn.jsdelivr.net/npm/dashjs@latest/dist/dash.all.min.js"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
   <style>
-    /* 滾動條美化 */
+    /* 移除捲軸預設外觀 */
     ::-webkit-scrollbar {
       width: 6px;
       height: 6px;
     }
     ::-webkit-scrollbar-track {
-      background: #161922;
+      background: #12151c;
     }
     ::-webkit-scrollbar-thumb {
-      background: #2b3242;
-      border-radius: 9999px;
+      background: #2a3142;
+      border-radius: 4px;
     }
     ::-webkit-scrollbar-thumb:hover {
-      background: #4f46e5;
+      background: #3e485e;
     }
 
-    /* Range Input 客製化 */
+    /* 播放器滑桿樣式 */
     input[type=range] {
       -webkit-appearance: none;
       background: transparent;
@@ -63,378 +76,457 @@
     }
     input[type=range]::-webkit-slider-thumb {
       -webkit-appearance: none;
-      height: 14px;
-      width: 14px;
+      height: 12px;
+      width: 12px;
       border-radius: 50%;
-      background: #6366f1;
+      background: #8b5cf6;
       cursor: pointer;
-      box-shadow: 0 0 4px rgba(0,0,0,0.5);
-      transition: transform 0.1s ease;
+      margin-top: -3px;
+      box-shadow: 0 0 8px rgba(139, 92, 246, 0.6);
+      transition: transform 0.15s ease;
     }
     input[type=range]::-webkit-slider-thumb:hover {
-      transform: scale(1.25);
+      transform: scale(1.3);
+    }
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 6px;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
     }
   </style>
 </head>
-<body class="bg-surface-900 text-gray-200 min-h-screen flex flex-col font-sans antialiased selection:bg-brand-500 selection:text-white">
+<body class="bg-surface-950 text-gray-200 min-h-screen flex flex-col font-sans selection:bg-brand-500 selection:text-white">
 
-  <!-- 頂部導覽列 -->
-  <header class="border-b border-surface-700 bg-surface-800/80 backdrop-blur-md sticky top-0 z-50 px-4 lg:px-8 py-3.5 flex items-center justify-between">
-    <div class="flex items-center space-x-3">
-      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-400 flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white">
-        <i class="fa-solid fa-play text-lg ml-0.5"></i>
+  <!-- 全域頂部導航 -->
+  <header class="border-b border-surface-850 bg-surface-900/80 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-[1720px] mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-brand-500/20">
+          <i data-lucide="play" class="w-4 h-4 text-white fill-white"></i>
+        </div>
+        <div>
+          <h1 class="text-sm font-bold tracking-wide text-white flex items-center gap-2">
+            萬能線上影音播放器
+            <span class="text-[10px] px-1.5 py-0.5 rounded bg-brand-500/10 text-brand-400 border border-brand-500/20 font-mono">PRO</span>
+          </h1>
+        </div>
       </div>
-      <div>
-        <h1 class="text-base font-bold tracking-tight text-white flex items-center gap-2">
-          萬能影音串流播放器
-          <span class="text-[11px] px-2 py-0.5 bg-brand-500/10 text-brand-500 rounded-full border border-brand-500/20 font-medium">Universal Player</span>
-        </h1>
-        <p class="text-xs text-gray-400 hidden sm:block">支援 MP4, WebM, HLS (.m3u8), DASH (.mpd) 及無副檔名串流網址</p>
+
+      <div class="flex items-center gap-2 text-xs">
+        <span id="player-engine-tag" class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-surface-800 text-gray-400 border border-surface-700/60 font-mono">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          引擎：閒置
+        </span>
       </div>
-    </div>
-    
-    <div class="flex items-center gap-2">
-      <button id="toggle-diagnostics-btn" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-700 hover:bg-surface-600 text-gray-300 transition-colors flex items-center gap-1.5 border border-surface-600">
-        <i class="fa-solid fa-chart-line text-brand-500"></i>
-        <span>串流狀態資訊</span>
-      </button>
     </div>
   </header>
 
-  <!-- 主要內容區 -->
-  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col gap-6">
+  <!-- 主版面容器 -->
+  <main class="flex-1 max-w-[1720px] w-full mx-auto px-3 sm:px-6 py-4 flex flex-col gap-4">
 
-    <!-- 網址輸入與操作面板 -->
-    <section class="bg-surface-800 rounded-2xl p-4 sm:p-5 border border-surface-700 shadow-xl flex flex-col gap-3">
+    <!-- 1. 播放網址輸入與協定工具列 -->
+    <section class="bg-surface-900 border border-surface-800 rounded-2xl p-3 sm:p-4 shadow-xl">
       <div class="flex flex-col lg:flex-row gap-3">
         <!-- 網址輸入框 -->
-        <div class="relative flex-1">
-          <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
-            <i class="fa-solid fa-link text-sm"></i>
-          </div>
+        <div class="flex-1 relative flex items-center">
+          <i data-lucide="link" class="w-4 h-4 absolute left-3.5 text-gray-500"></i>
           <input
-            id="video-url-input"
-            type="text"
-            placeholder="請貼上影片或串流網址 (例如：.mp4, .m3u8, .mpd, 或動態串流 API 網址)"
-            class="w-full pl-10 pr-10 py-3 bg-surface-900 border border-surface-600 rounded-xl text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition duration-150"
+            id="stream-url-input"
+            type="url"
+            placeholder="貼上影片直鏈（支援 .m3u8, .mp4, .mpd, ep001.mp4 劇集或無後綴 API 串流）..."
+            class="w-full bg-surface-950 border border-surface-700/80 rounded-xl pl-10 pr-10 py-2.5 text-xs sm:text-sm text-gray-100 placeholder-gray-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 font-mono transition"
           />
-          <button id="clear-url-btn" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-200 transition-colors hidden">
-            <i class="fa-solid fa-circle-xmark text-sm"></i>
+          <button id="clear-input-btn" class="hidden absolute right-3 text-gray-500 hover:text-gray-300">
+            <i data-lucide="x" class="w-4 h-4"></i>
           </button>
         </div>
 
-        <!-- 協定模式選擇 -->
-        <div class="flex gap-2 shrink-0">
-          <select id="protocol-select" class="bg-surface-900 border border-surface-600 rounded-xl px-3 py-3 text-xs sm:text-sm text-gray-200 focus:outline-none focus:border-brand-500 cursor-pointer">
-            <option value="auto">⚡ 自動偵測 (Auto-Detect)</option>
-            <option value="hls">📡 HLS (.m3u8)</option>
-            <option value="dash">📦 MPEG-DASH (.mpd)</option>
-            <option value="direct">🎬 原生格式 (MP4/WebM/OGG)</option>
+        <!-- 協定手動覆寫 (可選) 與載入按鈕 -->
+        <div class="flex items-center gap-2">
+          <select
+            id="protocol-select"
+            class="bg-surface-950 border border-surface-700/80 rounded-xl px-3 py-2.5 text-xs sm:text-sm text-gray-300 focus:outline-none focus:border-brand-500 cursor-pointer"
+            title="預設自動嗅探，亦可強制指定解碼模式"
+          >
+            <option value="auto">✨ 自動嗅探 (Auto Detect)</option>
+            <option value="hls">HLS (.m3u8)</option>
+            <option value="dash">MPEG-DASH (.mpd)</option>
+            <option value="direct">原生 Direct (MP4 / WebM / OGG)</option>
           </select>
 
-          <!-- 載入按鈕 -->
           <button
-            id="load-video-btn"
-            class="px-5 py-3 bg-brand-600 hover:bg-brand-500 text-white text-sm font-semibold rounded-xl shadow-lg shadow-brand-600/30 active:scale-95 transition-all flex items-center gap-2"
+            id="load-stream-btn"
+            class="flex items-center gap-2 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-medium px-5 py-2.5 rounded-xl text-xs sm:text-sm shadow-lg shadow-brand-600/30 active:scale-95 transition"
           >
-            <i class="fa-solid fa-play text-xs"></i>
+            <i data-lucide="play-circle" class="w-4 h-4"></i>
             <span>載入播放</span>
           </button>
         </div>
       </div>
 
-      <!-- 快速測試範例與輔助按鈕 -->
-      <div class="flex flex-wrap items-center justify-between gap-2 pt-1 text-xs text-gray-400">
-        <div class="flex flex-wrap items-center gap-2">
-          <span class="font-medium text-gray-400 mr-1"><i class="fa-solid fa-flask mr-1 text-brand-500"></i>快速測試樣例:</span>
-          <button class="sample-btn px-2.5 py-1 bg-surface-700 hover:bg-surface-600 rounded-lg text-gray-300 transition" data-url="https://vjs.zencdn.net/v/oceans.mp4" data-type="direct">
-            Oceans (MP4)
-          </button>
-          <button class="sample-btn px-2.5 py-1 bg-surface-700 hover:bg-surface-600 rounded-lg text-gray-300 transition" data-url="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/WeAreGoingOnBullrun.mp4" data-type="direct">
-            Bullrun (MP4)
-          </button>
-          <button class="sample-btn px-2.5 py-1 bg-surface-700 hover:bg-surface-600 rounded-lg text-gray-300 transition" data-url="https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" data-type="hls">
-            Mux Test (HLS .m3u8)
-          </button>
-          <button class="sample-btn px-2.5 py-1 bg-surface-700 hover:bg-surface-600 rounded-lg text-gray-300 transition" data-url="https://dash.akamaized.net/akamai/test/caption_test/ElephantsDream/elephants_dream_480p_heaac5_1.mpd" data-type="dash">
-            Akamai Test (DASH .mpd)
-          </button>
-        </div>
-        <div id="status-indicator" class="text-xs px-2.5 py-1 rounded-md bg-surface-700 text-gray-400 flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full bg-gray-500 inline-block"></span>
-          <span>播放器閒置</span>
-        </div>
+      <!-- 快速樣例標籤 -->
+      <div class="mt-3 pt-3 border-t border-surface-800/80 flex flex-wrap items-center gap-2 text-xs">
+        <span class="text-gray-400 flex items-center gap-1">
+          <i data-lucide="sparkles" class="w-3.5 h-3.5 text-brand-400"></i> 快速測試：
+        </span>
+        <button class="sample-btn px-2.5 py-1 rounded-lg bg-surface-800 hover:bg-surface-700 text-gray-300 hover:text-white border border-surface-700/50 transition font-mono" data-url="https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" data-proto="hls">
+          Big Buck Bunny (HLS)
+        </button>
+        <button class="sample-btn px-2.5 py-1 rounded-lg bg-surface-800 hover:bg-surface-700 text-gray-300 hover:text-white border border-surface-700/50 transition font-mono" data-url="https://dash.akamaized.net/akamai/bbb_30fps/bbb_30fps.mpd" data-proto="dash">
+          Akamai (DASH)
+        </button>
+        <button class="sample-btn px-2.5 py-1 rounded-lg bg-surface-800 hover:bg-surface-700 text-gray-300 hover:text-white border border-surface-700/50 transition font-mono" data-url="https://vjs.zencdn.net/v/oceans.mp4" data-proto="direct">
+          Oceans (MP4)
+        </button>
+        <button class="sample-btn px-2.5 py-1 rounded-lg bg-surface-800 hover:bg-surface-700 text-gray-300 hover:text-white border border-surface-700/50 transition font-mono" data-url="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4" data-proto="direct">
+          Blazes (MP4)
+        </button>
       </div>
     </section>
 
-    <!-- CORS 警告橫幅 (動態提示) -->
-    <div id="cors-banner" class="hidden bg-amber-500/10 border border-amber-500/30 text-amber-200 px-4 py-3 rounded-xl text-sm flex items-start gap-3">
-      <i class="fa-solid fa-triangle-exclamation text-amber-400 mt-1"></i>
-      <div class="flex-1">
-        <h3 class="font-bold text-amber-300">跨來源資源共享 (CORS) 警告或載入錯誤</h3>
-        <p class="text-xs text-amber-200/90 mt-1">
-          瀏覽器基於安全性限制，若伺服器未開啟 <code class="bg-amber-950 px-1.5 py-0.5 rounded text-amber-300">Access-Control-Allow-Origin: *</code> 標頭，HLS/DASH 分段下載將會被瀏覽器阻擋。
-          若確認網址無誤，您可：
-        </p>
-        <ul class="list-disc list-inside text-xs mt-1 text-amber-200/80 space-y-0.5">
-          <li>檢查影片伺服器是否允許 CORS 跨網域存取。</li>
-          <li>使用瀏覽器的「Allow CORS」擴充套件進行本機測試。</li>
-          <li>若是 MP4 等靜態檔案且無 CORS 限制，可選擇切換為「原生格式 (Direct File)」嘗試播放。</li>
-        </ul>
-      </div>
-      <button id="close-cors-banner" class="text-amber-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-
-    <!-- 播放器主體與自訂控制列 -->
-    <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- 2. 核心大畫面劇院播放器主體 (自適應高解析度螢幕) -->
+    <section class="flex flex-col bg-surface-900 border border-surface-800 rounded-2xl overflow-hidden shadow-2xl relative group">
       
-      <!-- 播放器容器 (佔據 2 欄或全螢幕) -->
-      <div class="lg:col-span-2 flex flex-col gap-3">
-        <div id="player-container" class="relative group bg-black rounded-2xl overflow-hidden shadow-2xl aspect-video w-full flex items-center justify-center border border-surface-700">
+      <!-- 播放器主螢幕 -->
+      <div id="player-container" class="relative w-full h-[52vh] sm:h-[65vh] md:h-[72vh] lg:h-[78vh] bg-black flex items-center justify-center overflow-hidden select-none">
+        
+        <!-- 原生 Video 元素 -->
+        <video
+          id="video-player"
+          class="w-full h-full object-contain cursor-pointer"
+          playsinline
+        ></video>
+
+        <!-- 載入中 Spinner -->
+        <div id="player-spinner" class="hidden absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-xs pointer-events-none">
+          <div class="w-12 h-12 border-4 border-brand-500/20 border-t-brand-500 rounded-full animate-spin"></div>
+        </div>
+
+        <!-- 畫面中央大型播放圖示反饋 (點擊/暫停時) -->
+        <div id="center-play-feedback" class="absolute pointer-events-none opacity-0 transform scale-75 transition-all duration-200 w-16 h-16 rounded-full bg-black/60 backdrop-blur border border-white/20 flex items-center justify-center text-white">
+          <i data-lucide="play" class="w-8 h-8 fill-current translate-x-0.5"></i>
+        </div>
+
+        <!-- 自訂浮動控制面板 (置底毛玻璃) -->
+        <div id="player-controls" class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent px-4 py-3 flex flex-col gap-2 transition-opacity duration-300 opacity-100">
           
-          <!-- HTML5 Video 元素 -->
-          <video
-            id="video-player"
-            class="w-full h-full object-contain cursor-pointer"
-            playsinline
-          ></video>
-
-          <!-- 載入中動畫 Spinner -->
-          <div id="player-spinner" class="hidden absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-xs pointer-events-none">
-            <div class="w-12 h-12 border-4 border-brand-500/20 border-t-brand-500 rounded-full animate-spin"></div>
-          </div>
-
-          <!-- 畫面中央的大播放圖示 (點擊時反饋) -->
-          <button id="big-play-btn" class="absolute w-16 h-16 rounded-full bg-brand-600/80 hover:bg-brand-500 backdrop-blur-sm flex items-center justify-center text-white text-xl shadow-2xl transition transform group-hover:scale-105 active:scale-95">
-            <i class="fa-solid fa-play ml-1"></i>
-          </button>
-
-          <!-- 自訂控制介面 (Hover 或操作時淡入) -->
-          <div id="custom-controls" class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/60 to-transparent pt-12 pb-3 px-4 transition-opacity duration-300 opacity-0 group-hover:opacity-100 flex flex-col gap-2">
-            
-            <!-- 進度條 -->
-            <div class="relative w-full flex items-center group/progress cursor-pointer">
-              <!-- 背景軌道 -->
-              <div class="w-full h-1.5 group-hover/progress:h-2.5 bg-gray-700/60 rounded-full overflow-hidden transition-all relative">
-                <!-- 緩衝條 -->
-                <div id="buffered-progress" class="absolute top-0 left-0 h-full bg-gray-500/40 w-0 transition-all"></div>
-                <!-- 播放進度條 -->
-                <div id="played-progress" class="absolute top-0 left-0 h-full bg-brand-500 w-0"></div>
-              </div>
+          <!-- 進度滑桿與時間 -->
+          <div class="flex items-center gap-3">
+            <div class="relative flex-1 flex items-center">
               <input
-                id="seek-slider"
+                id="seek-bar"
                 type="range"
                 min="0"
                 max="100"
                 value="0"
                 step="0.1"
-                class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                class="w-full h-1.5 cursor-pointer z-10"
               />
+              <!-- 緩衝條 (Buffer Bar) -->
+              <div id="buffer-bar" class="absolute left-0 top-1/2 -translate-y-1/2 h-1.5 bg-white/20 rounded-full pointer-events-none w-0"></div>
+            </div>
+            <div class="text-[11px] font-mono text-gray-300 whitespace-nowrap">
+              <span id="current-time">00:00</span> / <span id="duration-time">00:00</span>
+            </div>
+          </div>
+
+          <!-- 按鈕列 -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1 sm:gap-2">
+              <!-- 播放 / 暫停 -->
+              <button id="play-pause-btn" class="p-2 text-white hover:text-brand-400 transition" title="播放 / 暫停 (Space)">
+                <i data-lucide="play" class="w-5 h-5 fill-current"></i>
+              </button>
+
+              <!-- 上一集 / 下一集 (連續劇模式時亮起) -->
+              <button id="prev-ep-btn" disabled class="p-2 text-gray-500 hover:text-white disabled:opacity-30 disabled:hover:text-gray-500 transition" title="上一集 ([)">
+                <i data-lucide="skip-back" class="w-4 h-4"></i>
+              </button>
+              <button id="next-ep-btn" disabled class="p-2 text-gray-500 hover:text-white disabled:opacity-30 disabled:hover:text-gray-500 transition" title="下一集 (])">
+                <i data-lucide="skip-forward" class="w-4 h-4"></i>
+              </button>
+
+              <!-- 後退 10 秒 / 前進 10 秒 -->
+              <button id="rewind-btn" class="p-2 text-gray-300 hover:text-white transition" title="後退 10 秒 (←)">
+                <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+              </button>
+              <button id="forward-btn" class="p-2 text-gray-300 hover:text-white transition" title="快進 10 秒 (→)">
+                <i data-lucide="rotate-cw" class="w-4 h-4"></i>
+              </button>
+
+              <!-- 音量控制 -->
+              <div class="flex items-center gap-1 group/vol ml-1">
+                <button id="mute-btn" class="p-2 text-gray-300 hover:text-white transition" title="靜音 (M)">
+                  <i data-lucide="volume-2" class="w-5 h-5"></i>
+                </button>
+                <input
+                  id="volume-slider"
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value="1"
+                  class="w-16 sm:w-20 h-1 accent-brand-500 cursor-pointer hidden group-hover/vol:inline-block transition-all"
+                />
+              </div>
+
+              <!-- 當前集數標籤徽章 -->
+              <div id="current-ep-pill" class="hidden ml-2 px-2 py-0.5 rounded bg-brand-500/20 text-brand-300 border border-brand-500/30 text-xs font-mono font-bold">
+                EP 01
+              </div>
             </div>
 
-            <!-- 控制按鈕橫列 -->
-            <div class="flex items-center justify-between text-gray-200 text-sm mt-1">
-              <div class="flex items-center gap-3">
-                <!-- 播放 / 暫停 -->
-                <button id="play-pause-btn" class="hover:text-brand-500 transition-colors p-1" title="播放 / 暫停 (Space)">
-                  <i class="fa-solid fa-play text-base"></i>
+            <!-- 右側功能鍵：倍速、畫中畫、劇院、全螢幕 -->
+            <div class="flex items-center gap-1 sm:gap-2">
+              <!-- 倍速選單 -->
+              <div class="relative">
+                <button id="speed-btn" class="px-2 py-1 text-xs font-mono text-gray-300 hover:text-white bg-white/10 hover:bg-white/20 rounded-md transition">
+                  1.0x
                 </button>
-
-                <!-- 快退 10 秒 / 快進 10 秒 -->
-                <button id="rewind-btn" class="hover:text-brand-500 transition-colors text-xs p-1" title="快退 10 秒">
-                  <i class="fa-solid fa-backward-step"></i>
-                </button>
-                <button id="forward-btn" class="hover:text-brand-500 transition-colors text-xs p-1" title="快進 10 秒">
-                  <i class="fa-solid fa-forward-step"></i>
-                </button>
-
-                <!-- 音量調節 -->
-                <div class="flex items-center gap-2 group/volume">
-                  <button id="mute-btn" class="hover:text-brand-500 transition-colors p-1" title="靜音 / 開啟聲音 (M)">
-                    <i class="fa-solid fa-volume-high text-sm"></i>
-                  </button>
-                  <input
-                    id="volume-slider"
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.05"
-                    value="1"
-                    class="w-16 h-1 bg-gray-600 rounded-lg accent-brand-500 transition-all cursor-pointer"
-                  />
-                </div>
-
-                <!-- 時間顯示 -->
-                <div class="text-xs text-gray-300 font-mono tracking-tight ml-2">
-                  <span id="current-time">00:00</span> / <span id="duration-time">00:00</span>
+                <div id="speed-menu" class="hidden absolute bottom-full right-0 mb-2 bg-surface-900 border border-surface-700 rounded-xl p-1 shadow-2xl flex flex-col gap-1 z-30">
+                  <button class="speed-opt px-3 py-1 text-xs text-left rounded hover:bg-brand-600 hover:text-white" data-speed="0.5">0.5x</button>
+                  <button class="speed-opt px-3 py-1 text-xs text-left rounded hover:bg-brand-600 hover:text-white" data-speed="0.75">0.75x</button>
+                  <button class="speed-opt px-3 py-1 text-xs text-left rounded hover:bg-brand-600 hover:text-white font-bold text-brand-400" data-speed="1.0">1.0x</button>
+                  <button class="speed-opt px-3 py-1 text-xs text-left rounded hover:bg-brand-600 hover:text-white" data-speed="1.25">1.25x</button>
+                  <button class="speed-opt px-3 py-1 text-xs text-left rounded hover:bg-brand-600 hover:text-white" data-speed="1.5">1.5x</button>
+                  <button class="speed-opt px-3 py-1 text-xs text-left rounded hover:bg-brand-600 hover:text-white" data-speed="2.0">2.0x</button>
                 </div>
               </div>
 
-              <div class="flex items-center gap-3">
-                <!-- 倍速選擇 -->
-                <div class="relative">
-                  <button id="speed-btn" class="px-2 py-0.5 rounded text-xs font-semibold bg-surface-700/80 hover:bg-surface-600 border border-surface-600 transition">
-                    1.0x
-                  </button>
-                  <div id="speed-menu" class="hidden absolute bottom-full mb-2 right-0 bg-surface-800 border border-surface-600 rounded-xl shadow-xl py-1 w-20 flex flex-col text-xs z-30">
-                    <button class="speed-opt px-3 py-1.5 hover:bg-brand-600/30 text-left transition" data-speed="0.5">0.5x</button>
-                    <button class="speed-opt px-3 py-1.5 hover:bg-brand-600/30 text-left transition" data-speed="0.75">0.75x</button>
-                    <button class="speed-opt px-3 py-1.5 hover:bg-brand-600/30 text-left text-brand-400 font-bold transition" data-speed="1.0">1.0x</button>
-                    <button class="speed-opt px-3 py-1.5 hover:bg-brand-600/30 text-left transition" data-speed="1.25">1.25x</button>
-                    <button class="speed-opt px-3 py-1.5 hover:bg-brand-600/30 text-left transition" data-speed="1.5">1.5x</button>
-                    <button class="speed-opt px-3 py-1.5 hover:bg-brand-600/30 text-left transition" data-speed="2.0">2.0x</button>
-                  </div>
-                </div>
+              <!-- 子母畫面 PiP -->
+              <button id="pip-btn" class="p-2 text-gray-300 hover:text-white transition" title="子母畫面 (Picture-in-Picture)">
+                <i data-lucide="picture-in-picture-2" class="w-4 h-4"></i>
+              </button>
 
-                <!-- 畫中畫 (PiP) -->
-                <button id="pip-btn" class="hover:text-brand-500 transition-colors p-1" title="子母畫面 (Picture-in-Picture)">
-                  <i class="fa-solid fa-clone text-sm"></i>
-                </button>
-
-                <!-- 全螢幕切換 -->
-                <button id="fullscreen-btn" class="hover:text-brand-500 transition-colors p-1" title="全螢幕 (F)">
-                  <i class="fa-solid fa-expand text-base"></i>
-                </button>
-              </div>
+              <!-- 全螢幕 (F) -->
+              <button id="fullscreen-btn" class="p-2 text-gray-300 hover:text-white transition" title="全螢幕 (F)">
+                <i data-lucide="maximize" class="w-4 h-4"></i>
+              </button>
             </div>
           </div>
-        </div>
-
-        <!-- 播放器下方快捷提示與熱鍵說明 -->
-        <div class="flex items-center justify-between text-[11px] text-gray-500 px-1">
-          <div class="flex items-center gap-3">
-            <span><kbd class="px-1.5 py-0.5 rounded bg-surface-700 text-gray-300">Space</kbd> 播放/暫停</span>
-            <span><kbd class="px-1.5 py-0.5 rounded bg-surface-700 text-gray-300">F</kbd> 全螢幕</span>
-            <span><kbd class="px-1.5 py-0.5 rounded bg-surface-700 text-gray-300">M</kbd> 靜音</span>
-            <span><kbd class="px-1.5 py-0.5 rounded bg-surface-700 text-gray-300">← / →</kbd> 快退/快進 5秒</span>
-          </div>
-          <div id="video-engine-tag" class="text-xs text-brand-400 font-medium">引擎：閒置</div>
         </div>
       </div>
 
-      <!-- 右側：診斷狀態與播放歷史 -->
-      <div class="flex flex-col gap-6">
-        
-        <!-- 診斷狀態面板 -->
-        <div id="diagnostics-card" class="bg-surface-800 rounded-2xl p-5 border border-surface-700 shadow-xl flex flex-col gap-3">
-          <div class="flex items-center justify-between border-b border-surface-700 pb-2.5">
-            <h2 class="text-sm font-bold text-white flex items-center gap-2">
-              <i class="fa-solid fa-gauge-high text-brand-500"></i>
-              即時串流狀態
-            </h2>
-            <span id="active-engine-badge" class="px-2 py-0.5 text-[11px] font-semibold bg-surface-700 text-gray-300 rounded">None</span>
-          </div>
-
-          <div class="space-y-2 text-xs">
-            <div class="flex justify-between items-center py-1 border-b border-surface-700/50">
-              <span class="text-gray-400">目前影片解析度</span>
-              <span id="diag-resolution" class="font-mono text-gray-200 font-semibold">--</span>
-            </div>
-            <div class="flex justify-between items-center py-1 border-b border-surface-700/50">
-              <span class="text-gray-400">影片總長度</span>
-              <span id="diag-duration" class="font-mono text-gray-200">--</span>
-            </div>
-            <div class="flex justify-between items-center py-1 border-b border-surface-700/50">
-              <span class="text-gray-400">緩衝健康度 (Buffer)</span>
-              <span id="diag-buffer" class="font-mono text-emerald-400">0.00 秒</span>
-            </div>
-            <div class="flex justify-between items-center py-1 border-b border-surface-700/50">
-              <span class="text-gray-400">當前幀率/掉幀 (Dropped)</span>
-              <span id="diag-dropped" class="font-mono text-gray-200">0 幀</span>
-            </div>
-            <div class="flex justify-between items-center py-1 border-b border-surface-700/50">
-              <span class="text-gray-400">目前音量 / 狀態</span>
-              <span id="diag-volume" class="font-mono text-gray-200">100%</span>
-            </div>
-            <div class="flex flex-col gap-1 py-1">
-              <span class="text-gray-400">目前播放位址：</span>
-              <span id="diag-url" class="font-mono text-[11px] text-gray-300 break-all bg-surface-900 p-1.5 rounded border border-surface-700/60 max-h-16 overflow-y-auto">無</span>
-            </div>
-          </div>
+      <!-- 播放器底部狀態列 -->
+      <div class="px-4 py-2 bg-surface-950 flex flex-wrap items-center justify-between text-xs text-gray-400 gap-2 border-t border-surface-800">
+        <div class="flex items-center gap-3">
+          <span id="player-status-text" class="flex items-center gap-1.5 text-gray-400">
+            <span class="w-2 h-2 rounded-full bg-gray-500"></span> 準備就緒
+          </span>
+          <span id="media-res-badge" class="hidden px-1.5 py-0.5 rounded bg-surface-800 text-[10px] font-mono text-gray-300">-- x --</span>
         </div>
-
-        <!-- 歷史紀錄面板 -->
-        <div class="bg-surface-800 rounded-2xl p-5 border border-surface-700 shadow-xl flex flex-col flex-1">
-          <div class="flex items-center justify-between border-b border-surface-700 pb-2.5 mb-3">
-            <h2 class="text-sm font-bold text-white flex items-center gap-2">
-              <i class="fa-solid fa-clock-rotate-left text-brand-500"></i>
-              播放歷史紀錄
-            </h2>
-            <button id="clear-history-btn" class="text-xs text-gray-400 hover:text-rose-400 transition" title="清空所有歷史紀錄">
-              <i class="fa-solid fa-trash-can mr-1"></i>清空
-            </button>
-          </div>
-
-          <div id="history-container" class="flex-1 overflow-y-auto max-h-56 space-y-2 pr-1">
-            <!-- 歷史紀錄列表動態注入 -->
-            <div id="history-empty" class="text-center py-8 text-xs text-gray-500">
-              暫無播放紀錄
-            </div>
-          </div>
+        <div class="flex items-center gap-4 text-[11px] font-mono text-gray-500">
+          <span>解碼核心: <b id="active-engine-badge" class="text-gray-300">None</b></span>
+          <span class="hidden sm:inline">緩衝狀態: <b id="buffer-health-badge" class="text-gray-300">0s</b></span>
         </div>
-
       </div>
     </section>
 
+    <!-- 3. 連續劇集控制中樞 (支援 ep001.mp4 類型的全自動解析與選集) -->
+    <section class="bg-surface-900 border border-surface-800 rounded-2xl p-4 shadow-xl flex flex-col gap-3">
+      <div class="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-surface-800">
+        <div class="flex items-center gap-2">
+          <i data-lucide="layers" class="w-4 h-4 text-brand-400"></i>
+          <h2 class="text-sm font-semibold text-white">智慧連續劇集模式</h2>
+          <span id="series-status-badge" class="text-[10px] px-2 py-0.5 bg-gray-700 text-gray-300 rounded font-normal">
+            未啟用
+          </span>
+        </div>
+
+        <div class="flex items-center gap-4 text-xs">
+          <!-- 自動連播下一集開關 -->
+          <label class="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" id="auto-next-toggle" checked class="w-4 h-4 accent-brand-500 rounded cursor-pointer" />
+            <span class="text-gray-300 font-medium">完播自動無縫銜接下一集 (0延遲)</span>
+          </label>
+
+          <button id="rescan-series-btn" class="px-2.5 py-1 rounded bg-surface-800 hover:bg-surface-700 text-gray-300 text-xs border border-surface-700 transition flex items-center gap-1">
+            <i data-lucide="refresh-cw" class="w-3 h-3"></i> 重新偵測
+          </button>
+        </div>
+      </div>
+
+      <!-- 劇集設定與批次選集網格 -->
+      <div id="series-content" class="flex flex-col gap-3">
+        <!-- 劇集模式未偵測到時的提示 -->
+        <div id="series-hint" class="text-xs text-gray-500 py-3 text-center border border-dashed border-surface-800 rounded-xl">
+          貼上劇集網址（例如：<code class="text-brand-400">https://drama.crispdramas.com/hmjc_tc/41000396482/ep001.mp4</code>）即可自動產生選集按鈕並連播！
+        </div>
+
+        <!-- 劇集網格與快捷跳轉 (預設隱藏，偵測後顯示) -->
+        <div id="series-active-container" class="hidden flex flex-col gap-3">
+          <div class="flex flex-wrap items-center justify-between gap-3 text-xs bg-surface-950 p-2.5 rounded-xl border border-surface-800">
+            <div class="flex flex-wrap items-center gap-2 text-gray-300">
+              <span>前綴：<code id="series-pattern-prefix" class="text-brand-400 font-bold px-1.5 py-0.5 rounded bg-surface-900 border border-surface-700">ep</code></span>
+              <span class="text-gray-600">|</span>
+              <div class="flex items-center gap-1.5">
+                <span class="text-gray-400">位數格式：</span>
+                <select id="series-padding-select" class="bg-surface-900 border border-surface-700 rounded px-2 py-1 text-xs text-brand-300 font-mono focus:outline-none focus:border-brand-500">
+                  <option value="1">1 (不補零 1, 2...)</option>
+                  <option value="2">01 (二位 01, 02...)</option>
+                  <option value="3" selected>001 (三位 001, 002...)</option>
+                  <option value="4">0001 (四位 0001, 0002...)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- 自訂總集數輸入框 (若只有 50 集可直接填 50) -->
+            <div class="flex items-center gap-2">
+              <span class="text-gray-400">本劇總集數：</span>
+              <input
+                id="series-total-input"
+                type="number"
+                min="1"
+                max="500"
+                value="50"
+                class="w-16 bg-surface-900 border border-surface-700 rounded px-2 py-1 text-xs text-white font-mono text-center focus:outline-none focus:border-brand-500"
+              />
+              <span class="text-gray-500 text-[11px]">集</span>
+            </div>
+          </div>
+
+          <!-- 集數按鈕排盤 -->
+          <div id="episodes-grid" class="grid grid-cols-5 sm:grid-cols-10 md:grid-cols-15 lg:grid-cols-20 gap-1.5 max-h-48 overflow-y-auto p-1 bg-surface-950/60 rounded-xl border border-surface-800">
+            <!-- 動態生成集數按鈕 -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. 歷史紀錄與診斷說明面板 -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <!-- 播放歷史清單 -->
+      <section class="bg-surface-900 border border-surface-800 rounded-2xl p-4 shadow-xl flex flex-col">
+        <div class="flex items-center justify-between mb-3 pb-2 border-b border-surface-800">
+          <div class="flex items-center gap-2">
+            <i data-lucide="history" class="w-4 h-4 text-brand-400"></i>
+            <h3 class="text-xs font-semibold text-white">播放歷史紀錄</h3>
+          </div>
+          <button id="clear-history-btn" class="text-[11px] text-gray-500 hover:text-red-400 transition">
+            清空紀錄
+          </button>
+        </div>
+        <div id="history-container" class="flex-1 max-h-40 overflow-y-auto space-y-1.5 pr-1 text-xs">
+          <div class="text-gray-500 text-center py-4 text-[11px]">暫無播放紀錄</div>
+        </div>
+      </section>
+
+      <!-- 快速說明與熱鍵表 -->
+      <section class="lg:col-span-2 bg-surface-900 border border-surface-800 rounded-2xl p-4 shadow-xl flex flex-col justify-between">
+        <div>
+          <div class="flex items-center gap-2 mb-2 pb-2 border-b border-surface-800">
+            <i data-lucide="keyboard" class="w-4 h-4 text-brand-400"></i>
+            <h3 class="text-xs font-semibold text-white">鍵盤快捷鍵操作</h3>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] text-gray-300 mt-2">
+            <div class="bg-surface-950 p-2 rounded-lg border border-surface-800">
+              <span class="font-mono text-brand-400 font-bold block">Space</span> 播放 / 暫停
+            </div>
+            <div class="bg-surface-950 p-2 rounded-lg border border-surface-800">
+              <span class="font-mono text-brand-400 font-bold block">← / →</span> 後退 / 快進 10 秒
+            </div>
+            <div class="bg-surface-950 p-2 rounded-lg border border-surface-800">
+              <span class="font-mono text-brand-400 font-bold block">[ / ]</span> 上一集 / 下一集
+            </div>
+            <div class="bg-surface-950 p-2 rounded-lg border border-surface-800">
+              <span class="font-mono text-brand-400 font-bold block">F / 雙擊</span> 全螢幕劇院模式
+            </div>
+          </div>
+        </div>
+
+        <div id="cors-banner" class="hidden mt-3 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-300 flex items-start gap-2">
+          <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-400 shrink-0 mt-0.5"></i>
+          <div>
+            <b>跨域存取 (CORS) 警告：</b> 若外部影片伺服器未啟用 <code class="bg-surface-950 px-1 py-0.5 rounded">Access-Control-Allow-Origin</code>，瀏覽器將強制阻擋串流讀取。請參閱部署手冊中的 CORS 代理與擴充套件解決方案。
+          </div>
+        </div>
+      </section>
+    </div>
+
   </main>
 
-  <!-- 頁尾聲明 -->
-  <footer class="mt-auto border-t border-surface-700/60 py-4 text-center text-xs text-gray-500">
-    <p>Universal Online Video Stream Player &bull; 支援本機與遠端串流解析 &bull; 自動適配 HLS / DASH / 原生影音</p>
+  <!-- 底部版權宣告 -->
+  <footer class="mt-auto border-t border-surface-850 py-3 text-center text-gray-600 text-[11px]">
+    Universal Web Video Player &bull; 純前端無伺服器架構 &bull; 支援 HLS, MPEG-DASH, MP4 & 連續劇集無縫自動連播
   </footer>
 
-  <!-- 播放核心 JavaScript 邏輯 -->
+  <!-- 核心播放邏輯 Script -->
   <script>
-    // 取得主要 DOM 元素
+    // 初始化 Lucide 圖示
+    lucide.createIcons();
+
+    // DOM 節點引用
     const video = document.getElementById('video-player');
     const playerContainer = document.getElementById('player-container');
-    const urlInput = document.getElementById('video-url-input');
-    const clearUrlBtn = document.getElementById('clear-url-btn');
-    const loadBtn = document.getElementById('load-video-btn');
-    const protocolSelect = document.getElementById('protocol-select');
-    const statusIndicator = document.getElementById('status-indicator');
-    const corsBanner = document.getElementById('cors-banner');
-    const closeCorsBanner = document.getElementById('close-cors-banner');
-    const videoEngineTag = document.getElementById('video-engine-tag');
-    const activeEngineBadge = document.getElementById('active-engine-badge');
-
-    // 控制項元素
+    const playerSpinner = document.getElementById('player-spinner');
+    const playerControls = document.getElementById('player-controls');
     const playPauseBtn = document.getElementById('play-pause-btn');
-    const bigPlayBtn = document.getElementById('big-play-btn');
-    const rewindBtn = document.getElementById('rewind-btn');
-    const forwardBtn = document.getElementById('forward-btn');
-    const muteBtn = document.getElementById('mute-btn');
-    const volumeSlider = document.getElementById('volume-slider');
+    const centerPlayFeedback = document.getElementById('center-play-feedback');
+    const seekBar = document.getElementById('seek-bar');
+    const bufferBar = document.getElementById('buffer-bar');
     const currentTimeEl = document.getElementById('current-time');
     const durationTimeEl = document.getElementById('duration-time');
-    const seekSlider = document.getElementById('seek-slider');
-    const playedProgress = document.getElementById('played-progress');
-    const bufferedProgress = document.getElementById('buffered-progress');
+    const volumeSlider = document.getElementById('volume-slider');
+    const muteBtn = document.getElementById('mute-btn');
     const speedBtn = document.getElementById('speed-btn');
     const speedMenu = document.getElementById('speed-menu');
     const pipBtn = document.getElementById('pip-btn');
     const fullscreenBtn = document.getElementById('fullscreen-btn');
-    const playerSpinner = document.getElementById('player-spinner');
+    const rewindBtn = document.getElementById('rewind-btn');
+    const forwardBtn = document.getElementById('forward-btn');
+    const prevEpBtn = document.getElementById('prev-ep-btn');
+    const nextEpBtn = document.getElementById('next-ep-btn');
+    const currentEpPill = document.getElementById('current-ep-pill');
+
+    // 網址與設定
+    const urlInput = document.getElementById('stream-url-input');
+    const clearInputBtn = document.getElementById('clear-input-btn');
+    const protocolSelect = document.getElementById('protocol-select');
+    const loadStreamBtn = document.getElementById('load-stream-btn');
+    const sampleBtns = document.querySelectorAll('.sample-btn');
+
+    // 劇集控制項
+    const autoNextToggle = document.getElementById('auto-next-toggle');
+    const seriesStatusBadge = document.getElementById('series-status-badge');
+    const seriesHint = document.getElementById('series-hint');
+    const seriesActiveContainer = document.getElementById('series-active-container');
+    const seriesPatternPrefix = document.getElementById('series-pattern-prefix');
+    const seriesPaddingSelect = document.getElementById('series-padding-select');
+    const seriesTotalInput = document.getElementById('series-total-input');
+    const episodesGrid = document.getElementById('episodes-grid');
+    const rescanSeriesBtn = document.getElementById('rescan-series-btn');
 
     // 診斷監控元素
-    const diagRes = document.getElementById('diag-resolution');
-    const diagDur = document.getElementById('diag-duration');
-    const diagBuf = document.getElementById('diag-buffer');
-    const diagDrop = document.getElementById('diag-dropped');
-    const diagVol = document.getElementById('diag-volume');
-    const diagUrl = document.getElementById('diag-url');
+    const videoEngineTag = document.getElementById('player-engine-tag');
+    const activeEngineBadge = document.getElementById('active-engine-badge');
+    const playerStatusText = document.getElementById('player-status-text');
+    const mediaResBadge = document.getElementById('media-res-badge');
+    const bufferHealthBadge = document.getElementById('buffer-health-badge');
+    const corsBanner = document.getElementById('cors-banner');
     const historyContainer = document.getElementById('history-container');
-    const historyEmpty = document.getElementById('history-empty');
     const clearHistoryBtn = document.getElementById('clear-history-btn');
 
     // 實例變數
     let hlsInstance = null;
     let dashInstance = null;
-    let currentEngine = 'none'; // 'native' | 'hls' | 'dash'
+    let currentEngine = 'none';
     let historyList = [];
     let isPlayingOrSeekingPlay = false;
 
-    // 安全播放封裝：避免 play() 與 pause() 競態引發 AbortError
+    // 劇集解析狀態物件
+    let seriesInfo = {
+      isActive: false,
+      baseUrlTemplate: '', // 例如 'https://.../41000396482/ep{EP}.mp4'
+      prefix: '',          // 例如 'ep'
+      digits: 3,           // 例如 1, 2, 3, 4
+      currentEp: 1,        // 當前集數數值
+      extension: '.mp4',   // 副檔名
+      totalCount: 50       // 預設 50 集，可由輸入框隨意改
+    };
+
+    // 安全播放封裝
     async function safePlay() {
       try {
         isPlayingOrSeekingPlay = true;
@@ -443,126 +535,175 @@
           await playPromise;
         }
       } catch (err) {
-        // 忽略中斷播放或自動播放政策造成的預期錯誤
-        if (err.name !== 'AbortError' && err.name !== 'NotAllowedError') {
-          console.warn('播放發生異常:', err);
+        if (err.name === 'AbortError') return;
+        if (err.name === 'NotAllowedError') {
+          video.muted = true;
+          updateVolumeUI();
+          try {
+            await video.play();
+            setStatus('瀏覽器限制自動播放聲音，已自動靜音播放', 'warning');
+          } catch (e) {}
+          return;
         }
+        console.warn('播放被攔截或發生例外:', err);
       } finally {
         isPlayingOrSeekingPlay = false;
+        updatePlayState();
       }
     }
 
     // 安全暫停封裝
     function safePause() {
-      if (!video.paused) {
+      try {
         video.pause();
-      }
-    }
-
-    // 初始化 LocalStorage 歷史紀錄
-    function loadHistory() {
-      try {
-        const stored = localStorage.getItem('universal_player_history');
-        if (stored) {
-          historyList = JSON.parse(stored);
-          renderHistory();
-        }
-      } catch (e) {
-        console.error('Failed to read localStorage:', e);
-      }
-    }
-
-    function saveHistory(url, type) {
-      if (!url) return;
-      // 過濾已存在項目
-      historyList = historyList.filter(item => item.url !== url);
-      // 置於首位
-      historyList.unshift({
-        url,
-        type,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      });
-      // 最多保存 15 筆
-      if (historyList.length > 15) historyList.pop();
-      try {
-        localStorage.setItem('universal_player_history', JSON.stringify(historyList));
       } catch (e) {}
-      renderHistory();
+      updatePlayState();
     }
 
-    function renderHistory() {
-      if (historyList.length === 0) {
-        historyEmpty.classList.remove('hidden');
-        historyContainer.innerHTML = '';
-        historyContainer.appendChild(historyEmpty);
+    // 輔助函式：時間格式化 (秒 -> mm:ss 或 hh:mm:ss)
+    function formatTime(seconds) {
+      if (isNaN(seconds) || seconds < 0) return '00:00';
+      const s = Math.floor(seconds);
+      const hrs = Math.floor(s / 3600);
+      const mins = Math.floor((s % 3600) / 60);
+      const secs = s % 60;
+      if (hrs > 0) {
+        return `${hrs}:${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
+      }
+      return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    }
+
+    // 格式化集數數字補 0
+    function formatEpisodeNumber(num, digits) {
+      return String(num).padStart(digits, '0');
+    }
+
+    // 根據集數產生完整播放網址
+    function getUrlForEpisode(epNum) {
+      if (!seriesInfo.isActive) return urlInput.value;
+      const formattedNum = formatEpisodeNumber(epNum, seriesInfo.digits);
+      return seriesInfo.baseUrlTemplate.replace('{EP}', `${seriesInfo.prefix}${formattedNum}`);
+    }
+
+    // 智慧劇集網址辨識演算法
+    function detectSeriesPattern(rawUrl) {
+      if (!rawUrl) return false;
+      const cleanUrl = rawUrl.trim();
+      const urlWithoutQuery = cleanUrl.split('?')[0];
+
+      // 比對常見的劇集網址尾端命名慣例
+      const patternRegex = /(.*\/)(ep|EP|episode|Episode|drama|)([0-9]{1,4})(\.[a-zA-Z0-9]+)$/;
+      const match = urlWithoutQuery.match(patternRegex);
+
+      if (match) {
+        const basePath = match[1];
+        const prefix = match[2];
+        const numStr = match[3];
+        const ext = match[4];
+        const digits = numStr.length;
+        const currentEp = parseInt(numStr, 10);
+
+        const template = `${basePath}{EP}${ext}`;
+
+        seriesInfo = {
+          isActive: true,
+          baseUrlTemplate: template,
+          prefix: prefix,
+          digits: digits,
+          currentEp: currentEp,
+          extension: ext,
+          totalCount: parseInt(seriesTotalInput.value, 10) || 50
+        };
+
+        // 同步下拉選單的位數 (1, 2, 3, 4)
+        if (seriesPaddingSelect) {
+          seriesPaddingSelect.value = String(Math.min(Math.max(digits, 1), 4));
+        }
+
+        renderSeriesUI();
+        return true;
+      }
+
+      // 未匹配為劇集
+      seriesInfo.isActive = false;
+      renderSeriesUI();
+      return false;
+    }
+
+    // 渲染劇集 UI 與選集按鈕
+    function renderSeriesUI() {
+      if (!seriesInfo.isActive) {
+        seriesStatusBadge.textContent = '未啟用';
+        seriesStatusBadge.className = 'text-[10px] px-2 py-0.5 bg-gray-700 text-gray-300 rounded font-normal';
+        seriesHint.classList.remove('hidden');
+        seriesActiveContainer.classList.add('hidden');
+        prevEpBtn.disabled = true;
+        nextEpBtn.disabled = true;
+        currentEpPill.classList.add('hidden');
         return;
       }
-      historyEmpty.classList.add('hidden');
-      historyContainer.innerHTML = '';
 
-      historyList.forEach((item, index) => {
-        const el = document.createElement('div');
-        el.className = 'group flex items-center justify-between p-2 rounded-lg bg-surface-900/60 hover:bg-surface-700/80 border border-surface-700/60 text-xs transition cursor-pointer';
-        el.innerHTML = `
-          <div class="flex items-center gap-2 overflow-hidden flex-1 mr-2" title="${item.url}">
-            <span class="px-1.5 py-0.5 rounded text-[10px] uppercase font-semibold bg-brand-500/10 text-brand-400 shrink-0">${item.type}</span>
-            <span class="truncate text-gray-300 font-mono text-[11px]">${item.url}</span>
-          </div>
-          <div class="flex items-center gap-1.5 shrink-0">
-            <span class="text-[10px] text-gray-500">${item.timestamp}</span>
-            <button class="delete-history-item text-gray-500 hover:text-rose-400 p-1 opacity-0 group-hover:opacity-100 transition" data-index="${index}" title="刪除此紀錄">
-              <i class="fa-solid fa-xmark"></i>
-            </button>
-          </div>
-        `;
+      seriesStatusBadge.textContent = `已啟用 (第 ${seriesInfo.currentEp} / ${seriesInfo.totalCount} 集)`;
+      seriesStatusBadge.className = 'text-[10px] px-2 py-0.5 bg-brand-500/20 text-brand-300 border border-brand-500/30 rounded font-semibold';
+      seriesHint.classList.add('hidden');
+      seriesActiveContainer.classList.remove('hidden');
 
-        el.addEventListener('click', (e) => {
-          if (e.target.closest('.delete-history-item')) return;
-          urlInput.value = item.url;
-          protocolSelect.value = item.type === 'direct' ? 'direct' : (item.type === 'hls' ? 'hls' : (item.type === 'dash' ? 'dash' : 'auto'));
-          updateClearBtn();
-          loadSource(item.url, protocolSelect.value);
-        });
+      seriesPatternPrefix.textContent = seriesInfo.prefix || '(無)';
 
-        const deleteBtn = el.querySelector('.delete-history-item');
-        deleteBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          historyList.splice(index, 1);
-          localStorage.setItem('universal_player_history', JSON.stringify(historyList));
-          renderHistory();
-        });
+      prevEpBtn.disabled = (seriesInfo.currentEp <= 1);
+      nextEpBtn.disabled = (seriesInfo.currentEp >= seriesInfo.totalCount);
 
-        historyContainer.appendChild(el);
-      });
-    }
+      currentEpPill.textContent = `EP ${formatEpisodeNumber(seriesInfo.currentEp, seriesInfo.digits)}`;
+      currentEpPill.classList.remove('hidden');
 
-    // 更新狀態提示
-    function setStatus(msg, type = 'info') {
-      const dot = statusIndicator.querySelector('span');
-      const text = statusIndicator.querySelector('span:last-child');
-      text.textContent = msg;
+      // 繪製快速選集按鈕網格
+      episodesGrid.innerHTML = '';
+      const total = seriesInfo.totalCount || 50;
       
-      dot.className = 'w-2 h-2 rounded-full inline-block ';
-      if (type === 'loading') dot.className += 'bg-amber-400 animate-ping';
-      else if (type === 'success') dot.className += 'bg-emerald-400';
-      else if (type === 'error') dot.className += 'bg-rose-500';
-      else dot.className += 'bg-gray-500';
-    }
-
-    // 格式化秒數為 mm:ss 或 hh:mm:ss
-    function formatTime(seconds) {
-      if (!isFinite(seconds) || isNaN(seconds)) return '00:00';
-      const sec = Math.floor(seconds % 60);
-      const min = Math.floor((seconds / 60) % 60);
-      const hour = Math.floor(seconds / 3600);
-
-      const secStr = sec < 10 ? '0' + sec : sec;
-      const minStr = min < 10 ? '0' + min : min;
-      if (hour > 0) {
-        return `${hour}:${minStr}:${secStr}`;
+      for (let i = 1; i <= total; i++) {
+        const btn = document.createElement('button');
+        const isCurrent = (i === seriesInfo.currentEp);
+        btn.className = `py-1 text-center rounded text-xs font-mono transition ${
+          isCurrent 
+            ? 'bg-brand-600 text-white font-bold shadow-md shadow-brand-600/40 ring-1 ring-white/50' 
+            : 'bg-surface-800 hover:bg-surface-700 text-gray-300 hover:text-white'
+        }`;
+        btn.textContent = i;
+        btn.title = `播放第 ${i} 集`;
+        btn.addEventListener('click', () => {
+          switchToEpisode(i);
+        });
+        episodesGrid.appendChild(btn);
       }
-      return `${minStr}:${secStr}`;
     }
+
+    // 切換到指定集數
+    function switchToEpisode(targetEp) {
+      if (targetEp < 1) return;
+      seriesInfo.currentEp = targetEp;
+      const targetUrl = getUrlForEpisode(targetEp);
+      urlInput.value = targetUrl;
+      updateClearBtn();
+      renderSeriesUI();
+      loadSource(targetUrl, protocolSelect.value);
+    }
+
+    // 播放下一集
+    function playNextEpisode() {
+      if (seriesInfo.currentEp < seriesInfo.totalCount) {
+        switchToEpisode(seriesInfo.currentEp + 1);
+      }
+    }
+
+    // 播放上一集
+    function playPrevEpisode() {
+      if (seriesInfo.currentEp > 1) {
+        switchToEpisode(seriesInfo.currentEp - 1);
+      }
+    }
+
+    prevEpBtn.addEventListener('click', playPrevEpisode);
+    nextEpBtn.addEventListener('click', playNextEpisode);
 
     // 清理先前的播放實例
     function cleanupPlayer() {
@@ -582,7 +723,6 @@
       }
       safePause();
 
-      // 徹底重設 video DOM 狀態
       video.removeAttribute('src');
       while (video.firstChild) {
         video.removeChild(video.firstChild);
@@ -594,256 +734,21 @@
       currentEngine = 'none';
       videoEngineTag.textContent = '引擎：閒置';
       activeEngineBadge.textContent = 'None';
-      activeEngineBadge.className = 'px-2 py-0.5 text-[11px] font-semibold bg-surface-700 text-gray-300 rounded';
+      activeEngineBadge.className = 'px-2 py-0.5 text-[10px] font-semibold bg-surface-800 text-gray-300 rounded';
       corsBanner.classList.add('hidden');
     }
 
-    // 串流類型辨識
-    function detectProtocol(url) {
-      const cleanUrl = url.split('?')[0].toLowerCase();
-      if (cleanUrl.endsWith('.m3u8')) return 'hls';
-      if (cleanUrl.endsWith('.mpd')) return 'dash';
-      if (cleanUrl.endsWith('.mp4') || cleanUrl.endsWith('.webm') || cleanUrl.endsWith('.ogg') || cleanUrl.endsWith('.mov') || cleanUrl.endsWith('.m4v')) {
-        return 'direct';
-      }
-      return 'unknown';
-    }
-
-    // 核心載入函數
-    async function loadSource(rawUrl, manualFormat = 'auto') {
-      const url = rawUrl.trim();
-      if (!url) return;
-
-      cleanupPlayer();
-      setStatus('正在解析並載入串流...', 'loading');
-      playerSpinner.classList.remove('hidden');
-      diagUrl.textContent = url;
-
-      let targetFormat = manualFormat;
-
-      // 自動模式下的判斷策略
-      if (targetFormat === 'auto') {
-        const detected = detectProtocol(url);
-        if (detected !== 'unknown') {
-          targetFormat = detected;
-        } else {
-          // 無後綴時，嘗試依序執行降級嘗試 (HLS -> DASH -> 原生)
-          targetFormat = 'fallback-chain';
-        }
-      }
-
-      try {
-        if (targetFormat === 'hls') {
-          await loadHls(url);
-        } else if (targetFormat === 'dash') {
-          await loadDash(url);
-        } else if (targetFormat === 'direct') {
-          await loadNative(url);
-        } else if (targetFormat === 'fallback-chain') {
-          await executeFallbackChain(url);
-        }
-        saveHistory(url, currentEngine);
-      } catch (err) {
-        console.warn('播放載入流程捕獲錯誤:', err.message || err);
-        showErrorFeedback(err);
-      }
-    }
-
-    // 1. 載入 HLS
-    function loadHls(url) {
-      return new Promise((resolve, reject) => {
-        if (Hls.isSupported()) {
-          hlsInstance = new Hls({
-            enableWorker: true,
-            lowLatencyMode: true,
-            backBufferLength: 90
-          });
-
-          hlsInstance.loadSource(url);
-          hlsInstance.attachMedia(video);
-
-          hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
-            currentEngine = 'hls';
-            updateEngineUI('HLS.js', 'HLS 串流');
-            setStatus('HLS 串流就緒', 'success');
-            playerSpinner.classList.add('hidden');
-            safePlay();
-            resolve();
-          });
-
-          hlsInstance.on(Hls.Events.ERROR, (event, data) => {
-            if (data.fatal) {
-              switch (data.type) {
-                case Hls.ErrorTypes.NETWORK_ERROR:
-                  corsBanner.classList.remove('hidden');
-                  hlsInstance.destroy();
-                  reject(new Error('HLS 網路/CORS 錯誤: ' + data.details));
-                  break;
-                case Hls.ErrorTypes.MEDIA_ERROR:
-                  hlsInstance.recoverMediaError();
-                  break;
-                default:
-                  hlsInstance.destroy();
-                  reject(new Error('HLS 無法解析此串流: ' + data.details));
-                  break;
-              }
-            }
-          });
-        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-          // Safari 原生 HLS 支援
-          video.src = url;
-          currentEngine = 'native';
-          updateEngineUI('Safari Native HLS', 'HLS 串流');
-          video.addEventListener('loadedmetadata', () => {
-            setStatus('Safari 原生 HLS 就緒', 'success');
-            playerSpinner.classList.add('hidden');
-            safePlay();
-            resolve();
-          }, { once: true });
-
-          video.addEventListener('error', (e) => {
-            reject(new Error('Safari 原生播放錯誤'));
-          }, { once: true });
-        } else {
-          reject(new Error('此瀏覽器不支援 HLS 播放'));
-        }
-      });
-    }
-
-    // 2. 載入 DASH
-    function loadDash(url) {
-      return new Promise((resolve, reject) => {
-        try {
-          dashInstance = dashjs.MediaPlayer().create();
-          dashInstance.initialize(video, url, true);
-          currentEngine = 'dash';
-          updateEngineUI('Dash.js', 'DASH 串流');
-
-          dashInstance.on(dashjs.MediaPlayer.events.STREAM_INITIALIZED, () => {
-            setStatus('MPEG-DASH 串流就緒', 'success');
-            playerSpinner.classList.add('hidden');
-            resolve();
-          });
-
-          dashInstance.on(dashjs.MediaPlayer.events.ERROR, (e) => {
-            corsBanner.classList.remove('hidden');
-            reject(new Error('Dash.js 載入錯誤'));
-          });
-        } catch (e) {
-          reject(e);
-        }
-      });
-    }
-
-    // 3. 載入 原生影音 (MP4, WebM, OGG 等)
-    function loadNative(url) {
-      return new Promise((resolve, reject) => {
-        let isSettled = false;
-        let timeoutId = null;
-
-        const cleanupListeners = () => {
-          if (timeoutId) clearTimeout(timeoutId);
-          video.removeEventListener('loadedmetadata', onLoaded);
-          video.removeEventListener('loadeddata', onLoaded);
-          video.removeEventListener('canplay', onLoaded);
-          video.removeEventListener('error', onError);
-        };
-
-        const onLoaded = () => {
-          if (isSettled) return;
-          isSettled = true;
-          cleanupListeners();
-          currentEngine = 'direct';
-          updateEngineUI('HTML5 Native', '原生格式');
-          setStatus('原生影片就緒', 'success');
-          playerSpinner.classList.add('hidden');
-          corsBanner.classList.add('hidden');
-          safePlay();
-          resolve();
-        };
-
-        const onError = () => {
-          if (isSettled) return;
-          isSettled = true;
-          cleanupListeners();
-          const errCode = video.error ? video.error.code : 'UNKNOWN';
-          let detail = '無法存取或解碼該檔案';
-          if (errCode === 1) detail = '播放被使用者中斷';
-          else if (errCode === 2) detail = '網路連線問題，請檢查網址或 CORS 限制';
-          else if (errCode === 3) detail = '影片解碼失敗（不支援的編碼格式）';
-          else if (errCode === 4) detail = '伺服器拒絕存取或檔案格式不被支援 (HTTP 403/404/CORS)';
-
-          reject(new Error(detail));
-        };
-
-        // 綁定原生媒體事件（任一就緒事件到達即判定成功）
-        video.addEventListener('loadedmetadata', onLoaded, { once: true });
-        video.addEventListener('loadeddata', onLoaded, { once: true });
-        video.addEventListener('canplay', onLoaded, { once: true });
-        video.addEventListener('error', onError, { once: true });
-
-        // 設定 15 秒超時保護機制
-        timeoutId = setTimeout(() => {
-          if (!isSettled && (video.readyState >= 1)) {
-            onLoaded();
-          } else if (!isSettled) {
-            isSettled = true;
-            cleanupListeners();
-            reject(new Error('影片載入逾時，可能是伺服器無回應或被跨域限制擋下'));
-          }
-        }, 15000);
-
-        currentEngine = 'direct';
-        updateEngineUI('HTML5 Native', '原生格式');
-        
-        // 直接指派 src 並載入
-        video.src = url;
-        video.load();
-      });
-    }
-
-    // 無副檔名或未明確指定時的多層自動降級機制
-    async function executeFallbackChain(url) {
-      // 若網址直接包含 mp4/webm 等關鍵字，優先使用原生載入
-      const lowerUrl = url.toLowerCase();
-      if (lowerUrl.includes('.mp4') || lowerUrl.includes('.webm') || lowerUrl.includes('.ogg')) {
-        setStatus('偵測到靜態格式特徵，以原生 Video 優先載入...', 'loading');
-        try {
-          await loadNative(url);
-          return;
-        } catch (e) {
-          console.warn('原生優先載入未成功，轉向串流鏈嘗試:', e.message);
-        }
-      }
-
-      setStatus('嘗試以 HLS 串流協議解析...', 'loading');
-      try {
-        await loadHls(url);
-        return;
-      } catch (hlsErr) {
-        console.warn('HLS 嘗試失敗，轉向 DASH 嘗試...', hlsErr.message || hlsErr);
-      }
-
-      setStatus('嘗試以 MPEG-DASH 協議解析...', 'loading');
-      try {
-        await loadDash(url);
-        return;
-      } catch (dashErr) {
-        console.warn('DASH 嘗試失敗，轉向 HTML5 原生解析...', dashErr.message || dashErr);
-      }
-
-      setStatus('嘗試以原生 Video 直接載入...', 'loading');
-      try {
-        await loadNative(url);
-      } catch (nativeErr) {
-        throw new Error(nativeErr.message || '原生 Video 無法載入');
-      }
-    }
-
-    function updateEngineUI(name, typeText) {
-      videoEngineTag.textContent = `引擎：${name} (${typeText})`;
-      activeEngineBadge.textContent = name;
-      activeEngineBadge.className = 'px-2 py-0.5 text-[11px] font-semibold bg-brand-500/20 text-brand-300 rounded border border-brand-500/30';
+    // 狀態反饋顯示
+    function setStatus(text, type = 'info') {
+      const colors = {
+        info: 'bg-gray-400',
+        success: 'bg-emerald-400',
+        loading: 'bg-brand-400 animate-ping',
+        warning: 'bg-amber-400',
+        error: 'bg-rose-500'
+      };
+      const dotColor = colors[type] || colors.info;
+      playerStatusText.innerHTML = `<span class="w-2 h-2 rounded-full ${dotColor}"></span> ${text}`;
     }
 
     function showErrorFeedback(err) {
@@ -853,143 +758,145 @@
       corsBanner.classList.remove('hidden');
     }
 
-    // 播放器事件監聽與自訂 UI 控制同步
+    // 播放事件：結束時「零延遲」立即切換下一集
+    video.addEventListener('ended', () => {
+      if (seriesInfo.isActive && autoNextToggle.checked) {
+        if (seriesInfo.currentEp < seriesInfo.totalCount) {
+          playNextEpisode();
+        }
+      }
+    });
+
     video.addEventListener('play', () => {
-      playPauseBtn.innerHTML = '<i class="fa-solid fa-pause text-base"></i>';
-      bigPlayBtn.classList.add('opacity-0', 'pointer-events-none');
+      updatePlayState();
     });
 
     video.addEventListener('pause', () => {
-      playPauseBtn.innerHTML = '<i class="fa-solid fa-play text-base"></i>';
-      bigPlayBtn.classList.remove('opacity-0', 'pointer-events-none');
+      updatePlayState();
+    });
+
+    video.addEventListener('timeupdate', () => {
+      if (!isNaN(video.duration) && video.duration > 0) {
+        const pct = (video.currentTime / video.duration) * 100;
+        seekBar.value = pct;
+        currentTimeEl.textContent = formatTime(video.currentTime);
+        durationTimeEl.textContent = formatTime(video.duration);
+        updateBuffer();
+      }
+    });
+
+    video.addEventListener('loadedmetadata', () => {
+      durationTimeEl.textContent = formatTime(video.duration);
+      if (video.videoWidth && video.videoHeight) {
+        mediaResBadge.textContent = `${video.videoWidth} x ${video.videoHeight}`;
+        mediaResBadge.classList.remove('hidden');
+      }
     });
 
     video.addEventListener('waiting', () => {
       playerSpinner.classList.remove('hidden');
     });
 
-    video.addEventListener('playing', () => {
+    video.addEventListener('canplay', () => {
       playerSpinner.classList.add('hidden');
     });
 
-    video.addEventListener('timeupdate', () => {
-      if (!isFinite(video.duration)) return;
-      currentTimeEl.textContent = formatTime(video.currentTime);
-      durationTimeEl.textContent = formatTime(video.duration);
-      
-      const percent = (video.currentTime / video.duration) * 100;
-      playedProgress.style.width = `${percent}%`;
-      seekSlider.value = percent;
-
-      // 診斷面板資訊更新
-      diagDur.textContent = formatTime(video.duration);
-      updateBufferHealth();
-    });
-
-    video.addEventListener('loadedmetadata', () => {
-      diagRes.textContent = `${video.videoWidth || '--'} × ${video.videoHeight || '--'}`;
-      diagDur.textContent = formatTime(video.duration);
-    });
-
-    function updateBufferHealth() {
+    // 緩衝區監控
+    function updateBuffer() {
       if (video.buffered.length > 0) {
-        let bufferEnd = 0;
         for (let i = 0; i < video.buffered.length; i++) {
           if (video.buffered.start(i) <= video.currentTime && video.currentTime <= video.buffered.end(i)) {
-            bufferEnd = video.buffered.end(i);
-            break;
+            const bufferedEnd = video.buffered.end(i);
+            const duration = video.duration || 1;
+            const bufferPct = (bufferedEnd / duration) * 100;
+            bufferBar.style.width = `${Math.min(bufferPct, 100)}%`;
+            const health = (bufferedEnd - video.currentTime).toFixed(1);
+            bufferHealthBadge.textContent = `${health}s`;
+            return;
           }
         }
-        const bufferRemaining = Math.max(0, bufferEnd - video.currentTime);
-        diagBuf.textContent = `${bufferRemaining.toFixed(2)} 秒`;
-        
-        if (video.duration > 0) {
-          const bufPercent = (bufferEnd / video.duration) * 100;
-          bufferedProgress.style.width = `${Math.min(bufPercent, 100)}%`;
-        }
       }
-
-      // 監控掉幀 (Video Playback Quality API)
-      if (video.getVideoPlaybackQuality) {
-        const quality = video.getVideoPlaybackQuality();
-        diagDrop.textContent = `${quality.droppedVideoFrames} 幀 (${quality.totalVideoFrames} 總幀)`;
-      }
+      bufferHealthBadge.textContent = '0s';
     }
 
-    // 進度條控制
-    seekSlider.addEventListener('input', (e) => {
-      if (!isFinite(video.duration)) return;
-      const targetPercent = parseFloat(e.target.value);
-      const targetTime = (targetPercent / 100) * video.duration;
-      playedProgress.style.width = `${targetPercent}%`;
-      currentTimeEl.textContent = formatTime(targetTime);
-    });
+    // 更新播放按鈕圖示與中央回饋
+    function updatePlayState() {
+      const isPaused = video.paused;
+      playPauseBtn.innerHTML = isPaused
+        ? '<i data-lucide="play" class="w-5 h-5 fill-current"></i>'
+        : '<i data-lucide="pause" class="w-5 h-5 fill-current"></i>';
+      lucide.createIcons();
+    }
 
-    seekSlider.addEventListener('change', (e) => {
-      if (!isFinite(video.duration)) return;
-      const targetPercent = parseFloat(e.target.value);
-      video.currentTime = (targetPercent / 100) * video.duration;
-    });
-
-    // 播放/暫停按鈕
+    // 播放/暫停 切換
     function togglePlay() {
-      if (video.paused || video.ended) {
+      if (video.paused) {
         safePlay();
+        showFeedbackIcon('play');
       } else {
         safePause();
+        showFeedbackIcon('pause');
       }
     }
 
-    playPauseBtn.addEventListener('click', togglePlay);
-    bigPlayBtn.addEventListener('click', togglePlay);
-    video.addEventListener('click', togglePlay);
+    function showFeedbackIcon(type) {
+      centerPlayFeedback.innerHTML = type === 'play'
+        ? '<i data-lucide="play" class="w-8 h-8 fill-current translate-x-0.5"></i>'
+        : '<i data-lucide="pause" class="w-8 h-8 fill-current"></i>';
+      lucide.createIcons();
+      centerPlayFeedback.classList.remove('opacity-0', 'scale-75');
+      centerPlayFeedback.classList.add('opacity-100', 'scale-100');
+      setTimeout(() => {
+        centerPlayFeedback.classList.remove('opacity-100', 'scale-100');
+        centerPlayFeedback.classList.add('opacity-0', 'scale-75');
+      }, 300);
+    }
 
-    // 音量控制
-    volumeSlider.addEventListener('input', (e) => {
-      const val = parseFloat(e.target.value);
-      video.volume = val;
-      video.muted = (val === 0);
-      updateVolumeUI();
+    // 進度條尋找
+    seekBar.addEventListener('input', () => {
+      if (!isNaN(video.duration)) {
+        const targetTime = (seekBar.value / 100) * video.duration;
+        video.currentTime = targetTime;
+        currentTimeEl.textContent = formatTime(targetTime);
+      }
     });
+
+    // 音量切換
+    function updateVolumeUI() {
+      volumeSlider.value = video.muted ? 0 : video.volume;
+      if (video.muted || video.volume === 0) {
+        muteBtn.innerHTML = '<i data-lucide="volume-x" class="w-5 h-5 text-rose-400"></i>';
+      } else if (video.volume < 0.5) {
+        muteBtn.innerHTML = '<i data-lucide="volume-1" class="w-5 h-5"></i>';
+      } else {
+        muteBtn.innerHTML = '<i data-lucide="volume-2" class="w-5 h-5"></i>';
+      }
+      lucide.createIcons();
+    }
 
     muteBtn.addEventListener('click', () => {
       video.muted = !video.muted;
       updateVolumeUI();
     });
 
-    function updateVolumeUI() {
-      if (video.muted || video.volume === 0) {
-        muteBtn.innerHTML = '<i class="fa-solid fa-volume-xmark text-sm text-rose-400"></i>';
-        diagVol.textContent = '靜音 (0%)';
-      } else if (video.volume < 0.5) {
-        muteBtn.innerHTML = '<i class="fa-solid fa-volume-low text-sm"></i>';
-        diagVol.textContent = `${Math.round(video.volume * 100)}%`;
-      } else {
-        muteBtn.innerHTML = '<i class="fa-solid fa-volume-high text-sm"></i>';
-        diagVol.textContent = `${Math.round(video.volume * 100)}%`;
-      }
-      volumeSlider.value = video.muted ? 0 : video.volume;
-    }
+    volumeSlider.addEventListener('input', (e) => {
+      video.volume = parseFloat(e.target.value);
+      video.muted = (video.volume === 0);
+      updateVolumeUI();
+    });
 
-    // 快進 / 快退
-    rewindBtn.addEventListener('click', () => { video.currentTime = Math.max(0, video.currentTime - 10); });
-    forwardBtn.addEventListener('click', () => { video.currentTime = Math.min(video.duration || 0, video.currentTime + 10); });
-
-    // 播放倍速切換
+    // 倍速調整
     speedBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       speedMenu.classList.toggle('hidden');
     });
 
-    document.querySelectorAll('.speed-opt').forEach(opt => {
-      opt.addEventListener('click', (e) => {
-        const rate = parseFloat(e.target.dataset.speed);
-        video.playbackRate = rate;
-        speedBtn.textContent = `${rate}x`;
+    document.querySelectorAll('.speed-opt').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const spd = parseFloat(btn.dataset.speed);
+        video.playbackRate = spd;
+        speedBtn.textContent = `${spd}x`;
         speedMenu.classList.add('hidden');
-
-        document.querySelectorAll('.speed-opt').forEach(b => b.classList.remove('text-brand-400', 'font-bold'));
-        opt.classList.add('text-brand-400', 'font-bold');
       });
     });
 
@@ -997,98 +904,230 @@
       speedMenu.classList.add('hidden');
     });
 
-    // 子母畫面 (PiP)
+    // 子母畫面
     pipBtn.addEventListener('click', async () => {
       try {
         if (document.pictureInPictureElement) {
           await document.exitPictureInPicture();
-        } else if (document.pictureInPictureEnabled && !video.disablePictureInPicture) {
+        } else if (document.pictureInPictureEnabled) {
           await video.requestPictureInPicture();
         }
-      } catch (err) {
-        console.warn('PiP 操作未成功:', err);
+      } catch (e) {
+        console.warn('PiP 操作失敗:', e);
       }
     });
 
     // 全螢幕切換
-    fullscreenBtn.addEventListener('click', () => {
+    function toggleFullScreen() {
       if (!document.fullscreenElement) {
-        playerContainer.requestFullscreen().catch(err => console.warn(err));
-        fullscreenBtn.innerHTML = '<i class="fa-solid fa-compress text-base"></i>';
+        playerContainer.requestFullscreen().catch(err => {
+          console.warn(`全螢幕失敗: ${err.message}`);
+        });
       } else {
-        document.exitFullscreen().catch(err => console.warn(err));
-        fullscreenBtn.innerHTML = '<i class="fa-solid fa-expand text-base"></i>';
-      }
-    });
-
-    document.addEventListener('fullscreenchange', () => {
-      if (!document.fullscreenElement) {
-        fullscreenBtn.innerHTML = '<i class="fa-solid fa-expand text-base"></i>';
-      } else {
-        fullscreenBtn.innerHTML = '<i class="fa-solid fa-compress text-base"></i>';
-      }
-    });
-
-    // 鍵盤快速鍵支援
-    window.addEventListener('keydown', (e) => {
-      // 避免使用者在網址輸入框打字時誤觸快捷鍵
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') {
-        return;
-      }
-
-      switch (e.code) {
-        case 'Space':
-        case 'KeyK':
-          e.preventDefault();
-          togglePlay();
-          break;
-        case 'ArrowLeft':
-          e.preventDefault();
-          video.currentTime = Math.max(0, video.currentTime - 5);
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          video.currentTime = Math.min(video.duration || 0, video.currentTime + 5);
-          break;
-        case 'ArrowUp':
-          e.preventDefault();
-          video.volume = Math.min(1, video.volume + 0.1);
-          updateVolumeUI();
-          break;
-        case 'ArrowDown':
-          e.preventDefault();
-          video.volume = Math.max(0, video.volume - 0.1);
-          updateVolumeUI();
-          break;
-        case 'KeyM':
-          e.preventDefault();
-          video.muted = !video.muted;
-          updateVolumeUI();
-          break;
-        case 'KeyF':
-          e.preventDefault();
-          fullscreenBtn.click();
-          break;
-      }
-    });
-
-    // 載入按鈕與輸入框控制
-    function updateClearBtn() {
-      if (urlInput.value.length > 0) {
-        clearUrlBtn.classList.remove('hidden');
-      } else {
-        clearUrlBtn.classList.add('hidden');
+        document.exitFullscreen();
       }
     }
 
-    urlInput.addEventListener('input', updateClearBtn);
-    clearUrlBtn.addEventListener('click', () => {
-      urlInput.value = '';
-      updateClearBtn();
-      urlInput.focus();
+    fullscreenBtn.addEventListener('click', toggleFullScreen);
+    video.addEventListener('dblclick', toggleFullScreen);
+    video.addEventListener('click', togglePlay);
+    playPauseBtn.addEventListener('click', togglePlay);
+
+    // 快進 / 快退
+    rewindBtn.addEventListener('click', () => {
+      video.currentTime = Math.max(0, video.currentTime - 10);
+    });
+    forwardBtn.addEventListener('click', () => {
+      video.currentTime = Math.min(video.duration || 0, video.currentTime + 10);
     });
 
-    loadBtn.addEventListener('click', () => {
+    // 核心載入器：HLS
+    function loadHls(url) {
+      return new Promise((resolve, reject) => {
+        if (!Hls.isSupported()) {
+          reject(new Error('瀏覽器不支援 Hls.js MSE 解碼'));
+          return;
+        }
+
+        hlsInstance = new Hls({
+          enableWorker: true,
+          lowLatencyMode: true,
+          backBufferLength: 60,
+          xhrSetup: (xhr) => {
+            xhr.withCredentials = false;
+          }
+        });
+
+        hlsInstance.loadSource(url);
+        hlsInstance.attachMedia(video);
+
+        hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+          currentEngine = 'HLS.js';
+          videoEngineTag.textContent = '引擎：HLS.js (串流)';
+          activeEngineBadge.textContent = 'HLS.js';
+          activeEngineBadge.className = 'px-2 py-0.5 text-[10px] font-semibold bg-brand-500/20 text-brand-300 rounded border border-brand-500/30';
+          setStatus('HLS 串流就緒', 'success');
+          safePlay();
+          resolve();
+        });
+
+        hlsInstance.on(Hls.Events.ERROR, (event, data) => {
+          if (data.fatal) {
+            reject(new Error(`HLS 致命錯誤: ${data.details}`));
+          }
+        });
+      });
+    }
+
+    // 核心載入器：MPEG-DASH
+    function loadDash(url) {
+      return new Promise((resolve, reject) => {
+        try {
+          dashInstance = dashjs.MediaPlayer().create();
+          dashInstance.initialize(video, url, true);
+          dashInstance.on(dashjs.MediaPlayer.events.CAN_PLAY, () => {
+            currentEngine = 'Dash.js';
+            videoEngineTag.textContent = '引擎：Dash.js (串流)';
+            activeEngineBadge.textContent = 'Dash.js';
+            activeEngineBadge.className = 'px-2 py-0.5 text-[10px] font-semibold bg-indigo-500/20 text-indigo-300 rounded border border-indigo-500/30';
+            setStatus('DASH 串流就緒', 'success');
+            resolve();
+          });
+          dashInstance.on(dashjs.MediaPlayer.events.ERROR, (e) => {
+            reject(new Error('DASH 解析失敗'));
+          });
+        } catch (e) {
+          reject(e);
+        }
+      });
+    }
+
+    // 核心載入器：原生 Video 標籤 (支援 MP4/WebM/OGG 及 Safari HLS)
+    function loadNative(url) {
+      return new Promise((resolve, reject) => {
+        let isSettled = false;
+
+        const onReady = () => {
+          if (isSettled) return;
+          isSettled = true;
+          cleanupListeners();
+          currentEngine = 'Native HTML5';
+          videoEngineTag.textContent = '引擎：原生 HTML5';
+          activeEngineBadge.textContent = 'Native Video';
+          activeEngineBadge.className = 'px-2 py-0.5 text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/30';
+          setStatus('媒體就緒', 'success');
+          safePlay();
+          resolve();
+        };
+
+        const onError = () => {
+          if (isSettled) return;
+          isSettled = true;
+          cleanupListeners();
+
+          let errorMsg = '原生 Video 無法解碼或存取該檔案';
+          if (video.error) {
+            switch (video.error.code) {
+              case 1: errorMsg = '取回過程被終止 (MEDIA_ERR_ABORTED)'; break;
+              case 2: errorMsg = '網路連線發生錯誤 (MEDIA_ERR_NETWORK)'; break;
+              case 3: errorMsg = '格式無法解碼或音視訊損壞 (MEDIA_ERR_DECODE)'; break;
+              case 4: errorMsg = '來源不支援或伺服器拒絕存取/CORS限制 (MEDIA_ERR_SRC_NOT_SUPPORTED)'; break;
+            }
+          }
+          reject(new Error(errorMsg));
+        };
+
+        function cleanupListeners() {
+          video.removeEventListener('loadeddata', onReady);
+          video.removeEventListener('canplay', onReady);
+          video.removeEventListener('loadedmetadata', onReady);
+          video.removeEventListener('error', onError);
+        }
+
+        video.addEventListener('loadeddata', onReady);
+        video.addEventListener('canplay', onReady);
+        video.addEventListener('loadedmetadata', onReady);
+        video.addEventListener('error', onError);
+
+        video.src = url;
+        video.load();
+      });
+    }
+
+    // 智慧階梯式降級載入鏈
+    async function executeFallbackChain(url) {
+      // 步驟 1: 嘗試 HLS
+      try {
+        setStatus('正在嘗試 HLS 引擎...', 'loading');
+        await loadHls(url);
+        return;
+      } catch (e) {
+        cleanupPlayer();
+      }
+
+      // 步驟 2: 嘗試 DASH
+      try {
+        setStatus('正在嘗試 DASH 引擎...', 'loading');
+        await loadDash(url);
+        return;
+      } catch (e) {
+        cleanupPlayer();
+      }
+
+      // 步驟 3: 嘗試 原生解碼
+      setStatus('嘗試原生解碼...', 'loading');
+      await loadNative(url);
+    }
+
+    // 主載入控制器
+    async function loadSource(url, forcedProtocol = 'auto') {
+      if (!url || !url.trim()) return;
+      const cleanUrl = url.trim();
+
+      // 先進行連續劇樣式偵測
+      detectSeriesPattern(cleanUrl);
+
+      cleanupPlayer();
+      playerSpinner.classList.remove('hidden');
+      setStatus('分析串流中...', 'loading');
+
+      // 判斷網址特徵或副檔名
+      const urlLower = cleanUrl.split('?')[0].toLowerCase();
+      let targetFormat = forcedProtocol;
+
+      if (targetFormat === 'auto') {
+        if (urlLower.endsWith('.m3u8')) {
+          targetFormat = 'hls';
+        } else if (urlLower.endsWith('.mpd')) {
+          targetFormat = 'dash';
+        } else if (urlLower.endsWith('.mp4') || urlLower.endsWith('.webm') || urlLower.endsWith('.ogg')) {
+          targetFormat = 'direct';
+        } else {
+          targetFormat = 'sniff';
+        }
+      }
+
+      try {
+        if (targetFormat === 'hls') {
+          await loadHls(cleanUrl);
+        } else if (targetFormat === 'dash') {
+          await loadDash(cleanUrl);
+        } else if (targetFormat === 'direct') {
+          await loadNative(cleanUrl);
+        } else {
+          await executeFallbackChain(cleanUrl);
+        }
+
+        saveToHistory(cleanUrl);
+      } catch (err) {
+        showErrorFeedback(err);
+      } finally {
+        playerSpinner.classList.add('hidden');
+      }
+    }
+
+    // 輸入框與按鈕事件綁定
+    loadStreamBtn.addEventListener('click', () => {
       loadSource(urlInput.value, protocolSelect.value);
     });
 
@@ -1098,52 +1137,167 @@
       }
     });
 
-    // 快速範例按鈕綁定
-    document.querySelectorAll('.sample-btn').forEach(btn => {
+    function updateClearBtn() {
+      if (urlInput.value.length > 0) {
+        clearInputBtn.classList.remove('hidden');
+      } else {
+        clearInputBtn.classList.add('hidden');
+      }
+    }
+
+    urlInput.addEventListener('input', updateClearBtn);
+    clearInputBtn.addEventListener('click', () => {
+      urlInput.value = '';
+      updateClearBtn();
+      urlInput.focus();
+    });
+
+    // 點擊快速範例
+    sampleBtns.forEach(btn => {
       btn.addEventListener('click', () => {
-        const url = btn.dataset.url;
-        const type = btn.dataset.type;
-        urlInput.value = url;
-        protocolSelect.value = type;
+        const sampleUrl = btn.dataset.url;
+        const proto = btn.dataset.proto || 'auto';
+        urlInput.value = sampleUrl;
+        protocolSelect.value = proto;
         updateClearBtn();
-        loadSource(url, type);
+        loadSource(sampleUrl, proto);
       });
     });
 
-    // 清空歷史紀錄按鈕
+    // 手動變更總集數輸入框 (自訂任意集數，如 50)
+    seriesTotalInput.addEventListener('input', () => {
+      const val = parseInt(seriesTotalInput.value, 10);
+      if (val && val > 0) {
+        seriesInfo.totalCount = val;
+        renderSeriesUI();
+      }
+    });
+
+    // 手動變更補 0 位數下拉選單
+    seriesPaddingSelect.addEventListener('change', () => {
+      seriesInfo.digits = parseInt(seriesPaddingSelect.value, 10);
+      renderSeriesUI();
+    });
+
+    // 手動重新識別劇集按鈕
+    rescanSeriesBtn.addEventListener('click', () => {
+      if (urlInput.value) {
+        detectSeriesPattern(urlInput.value);
+      }
+    });
+
+    // 歷史紀錄處理
+    function loadHistory() {
+      try {
+        const stored = localStorage.getItem('uvp_history');
+        if (stored) {
+          historyList = JSON.parse(stored);
+          renderHistory();
+        }
+      } catch (e) {}
+    }
+
+    function saveToHistory(url) {
+      historyList = historyList.filter(item => item !== url);
+      historyList.unshift(url);
+      if (historyList.length > 15) historyList.pop();
+      try {
+        localStorage.setItem('uvp_history', JSON.stringify(historyList));
+      } catch (e) {}
+      renderHistory();
+    }
+
+    function renderHistory() {
+      if (historyList.length === 0) {
+        historyContainer.innerHTML = '<div class="text-gray-500 text-center py-4 text-[11px]">暫無播放紀錄</div>';
+        return;
+      }
+
+      historyContainer.innerHTML = '';
+      historyList.forEach((item) => {
+        const div = document.createElement('div');
+        div.className = 'group flex items-center justify-between p-2 rounded-lg bg-surface-950 hover:bg-surface-800 transition cursor-pointer border border-surface-800';
+        div.innerHTML = `
+          <div class="truncate text-gray-300 group-hover:text-brand-300 font-mono text-[11px] flex-1 mr-2" title="${item}">
+            ${item}
+          </div>
+          <button class="play-hist-btn text-gray-500 hover:text-white p-1" title="載入此項">
+            <i data-lucide="play" class="w-3.5 h-3.5"></i>
+          </button>
+        `;
+
+        div.addEventListener('click', () => {
+          urlInput.value = item;
+          updateClearBtn();
+          loadSource(item, 'auto');
+        });
+
+        historyContainer.appendChild(div);
+      });
+      lucide.createIcons();
+    }
+
     clearHistoryBtn.addEventListener('click', () => {
       historyList = [];
-      localStorage.removeItem('universal_player_history');
+      localStorage.removeItem('uvp_history');
       renderHistory();
     });
 
-    // 關閉 CORS 提示框
-    closeCorsBanner.addEventListener('click', () => {
-      corsBanner.classList.add('hidden');
+    // 全域鍵盤快捷鍵
+    document.addEventListener('keydown', (e) => {
+      if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+        return;
+      }
+
+      switch (e.code) {
+        case 'Space':
+          e.preventDefault();
+          togglePlay();
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          video.currentTime = Math.max(0, video.currentTime - 10);
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          video.currentTime = Math.min(video.duration || 0, video.currentTime + 10);
+          break;
+        case 'KeyF':
+          e.preventDefault();
+          toggleFullScreen();
+          break;
+        case 'KeyM':
+          e.preventDefault();
+          video.muted = !video.muted;
+          updateVolumeUI();
+          break;
+        case 'BracketLeft': // [ 上一集
+          if (seriesInfo.isActive) {
+            e.preventDefault();
+            playPrevEpisode();
+          }
+          break;
+        case 'BracketRight': // ] 下一集
+          if (seriesInfo.isActive) {
+            e.preventDefault();
+            playNextEpisode();
+          }
+          break;
+      }
     });
 
-    // 捕捉可能由非同步播放器引擎引發的未捕獲例外，避免在主控台報錯
+    // 攔截過濾全域非同步例外
     window.addEventListener('unhandledrejection', (event) => {
       if (event.reason && (
         event.reason.name === 'AbortError' ||
         (typeof event.reason.message === 'string' && event.reason.message.includes('原生 Video 無法解碼'))
       )) {
-        event.preventDefault(); // 阻止控制台紅字未捕獲例外拋出
-        console.warn('已妥善處理解析例外:', event.reason.message || event.reason);
+        event.preventDefault();
       }
     });
 
-    // 診斷卡片折疊開關 (移動端友善)
-    document.getElementById('toggle-diagnostics-btn').addEventListener('click', () => {
-      const diagCard = document.getElementById('diagnostics-card');
-      diagCard.classList.toggle('hidden');
-    });
-
-    // 頁面載入初始化
-    window.addEventListener('load', () => {
-      loadHistory();
-      updateVolumeUI();
-    });
+    // 初始化歷史紀錄
+    loadHistory();
   </script>
 </body>
 </html>
