@@ -161,9 +161,28 @@
             <option value="direct">原生 Direct (MP4 / WebM / OGG)</option>
           </select>
 
+          <!-- 隱藏的本機檔案 input -->
+          <input
+            id="local-file-input"
+            type="file"
+            accept="video/*,.mkv,.mp4,.webm,.ogg,.mov,.m4v"
+            class="hidden"
+          />
+
+          <!-- 本機檔案上傳按鈕 -->
+          <button
+            id="open-file-btn"
+            type="button"
+            class="flex items-center gap-1.5 bg-surface-800 hover:bg-surface-700 border border-surface-700 text-gray-200 hover:text-white px-3.5 py-2.5 rounded-xl text-xs sm:text-sm transition active:scale-95 whitespace-nowrap shadow"
+            title="從電腦或設備選取影片檔案播放"
+          >
+            <i data-lucide="folder-open" class="w-4 h-4 text-brand-400"></i>
+            <span>本機檔案</span>
+          </button>
+
           <button
             id="load-stream-btn"
-            class="flex items-center gap-2 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-medium px-5 py-2.5 rounded-xl text-xs sm:text-sm shadow-lg shadow-brand-600/30 active:scale-95 transition"
+            class="flex items-center gap-2 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-medium px-5 py-2.5 rounded-xl text-xs sm:text-sm shadow-lg shadow-brand-600/30 active:scale-95 transition whitespace-nowrap"
           >
             <i data-lucide="play-circle" class="w-4 h-4"></i>
             <span>載入播放</span>
@@ -203,6 +222,13 @@
           class="w-full h-full object-contain cursor-pointer"
           playsinline
         ></video>
+
+        <!-- 拖曳檔案進播放器的提示遮罩 (Drag & Drop Overlay) -->
+        <div id="drop-overlay" class="hidden absolute inset-0 bg-brand-950/80 backdrop-blur-sm border-2 border-dashed border-brand-400 z-40 flex flex-col items-center justify-center gap-2 pointer-events-none transition-all">
+          <i data-lucide="upload-cloud" class="w-12 h-12 text-brand-400 animate-bounce"></i>
+          <p class="text-sm font-semibold text-white">放開滑鼠即可播放此影片檔案</p>
+          <span class="text-xs text-brand-300">支援 MP4, WebM, OGG, MKV, MOV 等</span>
+        </div>
 
         <!-- 載入中 Spinner -->
         <div id="player-spinner" class="hidden absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-xs pointer-events-none">
@@ -495,6 +521,9 @@
     const protocolSelect = document.getElementById('protocol-select');
     const loadStreamBtn = document.getElementById('load-stream-btn');
     const sampleBtns = document.querySelectorAll('.sample-btn');
+    const openFileBtn = document.getElementById('open-file-btn');
+    const localFileInput = document.getElementById('local-file-input');
+    const dropOverlay = document.getElementById('drop-overlay');
 
     // 劇集控制項
     const autoNextToggle = document.getElementById('auto-next-toggle');
@@ -524,6 +553,7 @@
     let historyList = [];
     let isPlayingOrSeekingPlay = false;
     let controlsHideTimeout = null;
+    let currentObjectUrl = null; // 記錄本機檔案 Blob URL 以利釋放記憶體
 
     // 控制面板自動隱藏與顯示邏輯
     function showControls() {
@@ -765,6 +795,14 @@
         dashInstance = null;
       }
       safePause();
+
+      // 若有先前產生的本機 Blob URL，釋放瀏覽器記憶體
+      if (currentObjectUrl) {
+        try {
+          URL.revokeObjectURL(currentObjectUrl);
+        } catch (e) {}
+        currentObjectUrl = null;
+      }
 
       video.removeAttribute('src');
       while (video.firstChild) {
@@ -1102,6 +1140,77 @@
         video.load();
       });
     }
+
+    // 播放本機選取的檔案
+    async function playLocalFile(file) {
+      if (!file) return;
+
+      cleanupPlayer();
+      seriesInfo.isActive = false;
+      renderSeriesUI();
+
+      // 產生 Blob URL
+      currentObjectUrl = URL.createObjectURL(file);
+      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      urlInput.value = `[本機檔案] ${file.name} (${fileSizeMB} MB)`;
+      updateClearBtn();
+
+      playerSpinner.classList.remove('hidden');
+      setStatus(`載入本機檔案中: ${file.name}...`, 'loading');
+
+      try {
+        await loadNative(currentObjectUrl);
+        videoEngineTag.textContent = '引擎：本機檔案 (Local Blob)';
+        activeEngineBadge.textContent = 'Local File';
+        activeEngineBadge.className = 'px-2 py-0.5 text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/30';
+        setStatus(`已成功載入本機影片: ${file.name}`, 'success');
+      } catch (err) {
+        showErrorFeedback(err);
+      } finally {
+        playerSpinner.classList.add('hidden');
+      }
+    }
+
+    // 本機檔案按鈕事件
+    openFileBtn.addEventListener('click', () => {
+      localFileInput.value = '';
+      localFileInput.click();
+    });
+
+    localFileInput.addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (file) {
+        playLocalFile(file);
+      }
+    });
+
+    // 播放器容器支援拖曳檔案 (Drag & Drop)
+    playerContainer.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropOverlay.classList.remove('hidden');
+    });
+
+    playerContainer.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropOverlay.classList.add('hidden');
+    });
+
+    playerContainer.addEventListener('drop', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dropOverlay.classList.add('hidden');
+      const files = e.dataTransfer && e.dataTransfer.files;
+      if (files && files.length > 0) {
+        const file = files[0];
+        if (file.type.startsWith('video/') || /\.(mp4|mkv|webm|ogg|mov|m4v)$/i.test(file.name)) {
+          playLocalFile(file);
+        } else {
+          setStatus('請拖曳正確的影片檔案格式', 'warning');
+        }
+      }
+    });
 
     // 智慧階梯式降級載入鏈
     async function executeFallbackChain(url) {
