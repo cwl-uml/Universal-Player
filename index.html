@@ -165,20 +165,41 @@
           <input
             id="local-file-input"
             type="file"
-            accept="video/*,.mkv,.mp4,.webm,.ogg,.mov,.m4v"
+            accept="video/*,.mkv,.mp4,.webm,.ogg,.mov,.m4v,.m3u8,.ts"
             class="hidden"
           />
 
-          <!-- 本機檔案上傳按鈕 -->
-          <button
-            id="open-file-btn"
-            type="button"
-            class="flex items-center gap-1.5 bg-surface-800 hover:bg-surface-700 border border-surface-700 text-gray-200 hover:text-white px-3.5 py-2.5 rounded-xl text-xs sm:text-sm transition active:scale-95 whitespace-nowrap shadow"
-            title="從電腦或設備選取影片檔案播放"
-          >
-            <i data-lucide="folder-open" class="w-4 h-4 text-brand-400"></i>
-            <span>本機檔案</span>
-          </button>
+          <!-- 隱藏的本機資料夾 input (專供完整 m3u8 + ts 分段資料夾) -->
+          <input
+            id="local-folder-input"
+            type="file"
+            webkitdirectory
+            directory
+            multiple
+            class="hidden"
+          />
+
+          <!-- 本機檔案上傳按鈕群組 -->
+          <div class="relative group/localbtn flex items-center">
+            <button
+              id="open-file-btn"
+              type="button"
+              class="flex items-center gap-1.5 bg-surface-800 hover:bg-surface-700 border border-surface-700 text-gray-200 hover:text-white px-3.5 py-2.5 rounded-l-xl text-xs sm:text-sm transition active:scale-95 whitespace-nowrap shadow"
+              title="選取單一影片或 m3u8 檔案"
+            >
+              <i data-lucide="folder-open" class="w-4 h-4 text-brand-400"></i>
+              <span>本機檔案</span>
+            </button>
+            <button
+              id="open-folder-btn"
+              type="button"
+              class="flex items-center gap-1 bg-surface-850 hover:bg-surface-700 border-y border-r border-surface-700 text-gray-400 hover:text-brand-300 px-2 py-2.5 rounded-r-xl text-xs transition active:scale-95 whitespace-nowrap"
+              title="選取含有 m3u8 與 ts 分段的完整資料夾"
+            >
+              <i data-lucide="folder-tree" class="w-4 h-4"></i>
+              <span class="hidden sm:inline text-[11px]">資料夾(m3u8)</span>
+            </button>
+          </div>
 
           <button
             id="load-stream-btn"
@@ -226,8 +247,8 @@
         <!-- 拖曳檔案進播放器的提示遮罩 (Drag & Drop Overlay) -->
         <div id="drop-overlay" class="hidden absolute inset-0 bg-brand-950/80 backdrop-blur-sm border-2 border-dashed border-brand-400 z-40 flex flex-col items-center justify-center gap-2 pointer-events-none transition-all">
           <i data-lucide="upload-cloud" class="w-12 h-12 text-brand-400 animate-bounce"></i>
-          <p class="text-sm font-semibold text-white">放開滑鼠即可播放此影片檔案</p>
-          <span class="text-xs text-brand-300">支援 MP4, WebM, OGG, MKV, MOV 等</span>
+          <p class="text-sm font-semibold text-white">放開滑鼠即可播放此影片或 m3u8 資料夾</p>
+          <span class="text-xs text-brand-300">支援 MP4, WebM, 本機 M3U8、TS 及完整資料夾</span>
         </div>
 
         <!-- 載入中 Spinner -->
@@ -522,7 +543,9 @@
     const loadStreamBtn = document.getElementById('load-stream-btn');
     const sampleBtns = document.querySelectorAll('.sample-btn');
     const openFileBtn = document.getElementById('open-file-btn');
+    const openFolderBtn = document.getElementById('open-folder-btn');
     const localFileInput = document.getElementById('local-file-input');
+    const localFolderInput = document.getElementById('local-folder-input');
     const dropOverlay = document.getElementById('drop-overlay');
 
     // 劇集控制項
@@ -554,6 +577,7 @@
     let isPlayingOrSeekingPlay = false;
     let controlsHideTimeout = null;
     let currentObjectUrl = null; // 記錄本機檔案 Blob URL 以利釋放記憶體
+    let localFileMap = new Map(); // 本機虛擬檔案路徑映射表 (供 m3u8 相對分段查找)
 
     // 控制面板自動隱藏與顯示邏輯
     function showControls() {
@@ -796,6 +820,9 @@
       }
       safePause();
 
+      // 清空本機虛擬檔案映射表
+      localFileMap.clear();
+
       // 若有先前產生的本機 Blob URL，釋放瀏覽器記憶體
       if (currentObjectUrl) {
         try {
@@ -1036,10 +1063,52 @@
           return;
         }
 
+        // 自訂虛擬 Loader：優先從本機記憶體映射表 (localFileMap) 查找分段
+        class LocalVirtualLoader extends Hls.DefaultConfig.loader {
+          constructor(config) {
+            super(config);
+            const load = this.load.bind(this);
+            this.load = function (context, config, callbacks) {
+              const reqUrl = context.url;
+              // 取得純檔名 (如 segment0.ts)
+              const fileName = decodeURIComponent(reqUrl.split('/').pop().split('?')[0]);
+
+              if (localFileMap.has(fileName)) {
+                const targetFile = localFileMap.get(fileName);
+                const reader = new FileReader();
+
+                reader.onload = function () {
+                  const response = {
+                    url: reqUrl,
+                    data: reader.result
+                  };
+                  callbacks.onSuccess(response, { trequest: 0, tfirst: 0, tload: 0 }, context);
+                };
+
+                reader.onerror = function (err) {
+                  callbacks.onError({ code: 404, text: '本機分段讀取失敗' }, context, null);
+                };
+
+                if (context.responseType === 'arraybuffer' || !context.responseType) {
+                  reader.readAsArrayBuffer(targetFile);
+                } else {
+                  reader.readAsText(targetFile);
+                }
+                return;
+              }
+
+              // 非本機映射檔案，走標準 HTTP 請求
+              return load(context, config, callbacks);
+            };
+          }
+        }
+
         hlsInstance = new Hls({
-          enableWorker: true,
+          enableWorker: false, // 虛擬本機映射需在主執行緒讀取 FileReader
           lowLatencyMode: true,
           backBufferLength: 60,
+          pLoader: LocalVirtualLoader,
+          fLoader: LocalVirtualLoader,
           xhrSetup: (xhr) => {
             xhr.withCredentials = false;
           }
@@ -1141,29 +1210,53 @@
       });
     }
 
-    // 播放本機選取的檔案
-    async function playLocalFile(file) {
+    // 播放本機選取的檔案或資料夾
+    async function playLocalFile(file, allFiles = []) {
       if (!file) return;
 
       cleanupPlayer();
       seriesInfo.isActive = false;
       renderSeriesUI();
 
-      // 產生 Blob URL
-      currentObjectUrl = URL.createObjectURL(file);
-      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      // 如果有傳入同批選取的檔案或資料夾中的所有檔案，建立虛擬檔名映射表
+      if (allFiles.length > 0) {
+        allFiles.forEach(f => {
+          localFileMap.set(f.name, f);
+        });
+      } else {
+        localFileMap.set(file.name, file);
+      }
+
+      const isM3U8 = file.name.toLowerCase().endsWith('.m3u8');
+      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      
       urlInput.value = `[本機檔案] ${file.name} (${fileSizeMB} MB)`;
       updateClearBtn();
-
       playerSpinner.classList.remove('hidden');
-      setStatus(`載入本機檔案中: ${file.name}...`, 'loading');
 
       try {
-        await loadNative(currentObjectUrl);
-        videoEngineTag.textContent = '引擎：本機檔案 (Local Blob)';
-        activeEngineBadge.textContent = 'Local File';
-        activeEngineBadge.className = 'px-2 py-0.5 text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/30';
-        setStatus(`已成功載入本機影片: ${file.name}`, 'success');
+        if (isM3U8) {
+          setStatus(`正在解析本機 M3U8 清單: ${file.name}...`, 'loading');
+          // 讀取 m3u8 文字並建立合法的 MIME Blob
+          const text = await file.text();
+          const blob = new Blob([text], { type: 'application/vnd.apple.mpegurl' });
+          currentObjectUrl = URL.createObjectURL(blob);
+
+          await loadHls(currentObjectUrl);
+          videoEngineTag.textContent = '引擎：本機 HLS.js 串流';
+          activeEngineBadge.textContent = 'Local M3U8';
+          activeEngineBadge.className = 'px-2 py-0.5 text-[10px] font-semibold bg-brand-500/20 text-brand-300 rounded border border-brand-500/30';
+          setStatus(`已成功載入本機 M3U8: ${file.name} (含 ${allFiles.length} 個分段檔案)`, 'success');
+        } else {
+          // 一般直讀檔案 (MP4, WebM, OGG 等)
+          setStatus(`載入本機影片中: ${file.name}...`, 'loading');
+          currentObjectUrl = URL.createObjectURL(file);
+          await loadNative(currentObjectUrl);
+          videoEngineTag.textContent = '引擎：本機檔案 (Local Direct)';
+          activeEngineBadge.textContent = 'Local File';
+          activeEngineBadge.className = 'px-2 py-0.5 text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 rounded border border-emerald-500/30';
+          setStatus(`已成功載入本機影片: ${file.name}`, 'success');
+        }
       } catch (err) {
         showErrorFeedback(err);
       } finally {
@@ -1171,7 +1264,29 @@
       }
     }
 
-    // 本機檔案按鈕事件
+    // 處理選取資料夾內的一批檔案
+    function handleMultipleFiles(fileList) {
+      const files = Array.from(fileList);
+      if (!files.length) return;
+
+      // 優先尋找主 .m3u8 檔 (例如 index.m3u8, master.m3u8 或任意 .m3u8)
+      const m3u8File = files.find(f => f.name.toLowerCase().endsWith('.m3u8'));
+      if (m3u8File) {
+        playLocalFile(m3u8File, files);
+        return;
+      }
+
+      // 其次尋找一般常見影片檔
+      const videoFile = files.find(f => /\.(mp4|mkv|webm|ogg|mov|m4v)$/i.test(f.name));
+      if (videoFile) {
+        playLocalFile(videoFile, files);
+        return;
+      }
+
+      setStatus('未在選取的資料夾或檔案群中找到支援的 .m3u8 或影片檔', 'warning');
+    }
+
+    // 本機單一檔案選取事件
     openFileBtn.addEventListener('click', () => {
       localFileInput.value = '';
       localFileInput.click();
@@ -1180,11 +1295,23 @@
     localFileInput.addEventListener('change', (e) => {
       const file = e.target.files && e.target.files[0];
       if (file) {
-        playLocalFile(file);
+        playLocalFile(file, [file]);
       }
     });
 
-    // 播放器容器支援拖曳檔案 (Drag & Drop)
+    // 本機整份資料夾選取事件 (專供完整 m3u8 + ts 分段)
+    openFolderBtn.addEventListener('click', () => {
+      localFolderInput.value = '';
+      localFolderInput.click();
+    });
+
+    localFolderInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files.length > 0) {
+        handleMultipleFiles(e.target.files);
+      }
+    });
+
+    // 播放器容器支援拖曳單檔或多檔 (Drag & Drop)
     playerContainer.addEventListener('dragover', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -1203,12 +1330,7 @@
       dropOverlay.classList.add('hidden');
       const files = e.dataTransfer && e.dataTransfer.files;
       if (files && files.length > 0) {
-        const file = files[0];
-        if (file.type.startsWith('video/') || /\.(mp4|mkv|webm|ogg|mov|m4v)$/i.test(file.name)) {
-          playLocalFile(file);
-        } else {
-          setStatus('請拖曳正確的影片檔案格式', 'warning');
-        }
+        handleMultipleFiles(files);
       }
     });
 
